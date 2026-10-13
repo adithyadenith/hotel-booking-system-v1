@@ -1,0 +1,34 @@
+{
+  "name": "hotel-api",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node-dev --files --respawn src/main.ts",
+    "db:migrate": "prisma migrate dev --name init && prisma db execute --file prisma/sql/constraints.sql --schema prisma/schema.prisma",
+    "db:seed": "ts-node --files prisma/seed.ts",
+    "test": "ts-node test/concurrency.ts",
+    "db:reset": "prisma migrate reset --force --skip-seed && prisma db execute --file prisma/sql/constraints.sql --schema prisma/schema.prisma && npm run db:seed",
+    "db:rls": "prisma db execute --file prisma/sql/rls.sql --schema prisma/schema.prisma",
+    "test:api": "ts-node test/api.ts",
+    "test:features": "ts-node test/features.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10",
+    "@nestjs/core": "^10",
+    "@nestjs/jwt": "^10",
+    "@nestjs/platform-express": "^10",
+    "@nestjs/throttler": "^5",
+    "@prisma/client": "^5",
+    "bcryptjs": "^2",
+    "reflect-metadata": "^0.2",
+    "rxjs": "^7",
+    "zod": "^3",
+    "dotenv": "^16"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "prisma": "^5",
+    "ts-node": "^10",
+    "ts-node-dev": "^2",
+    "typescript": "^5"
+  }
+}

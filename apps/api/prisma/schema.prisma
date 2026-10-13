@@ -1,0 +1,342 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  RECEPTIONIST
+  HOUSEKEEPING
+}
+
+enum ResStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  NO_SHOW
+}
+
+model Hotel {
+  id                    String                 @id @default(uuid())
+  slug                  String                 @unique
+  name                  String
+  timezone              String                 @default("Asia/Colombo")
+  currency              String                 @default("LKR")
+  widgetKey             String                 @unique @default(uuid())
+  memberships           Membership[]
+  roomTypes             RoomType[]
+  rooms                 Room[]
+  guests                Guest[]
+  reservations          Reservation[]
+  auditLogs             AuditLog[]
+  rateRules             RateRule[]
+  maintenanceBlocks     MaintenanceBlock[]
+  notifications         Notification[]
+  promoCodes            PromoCode[]
+  paymentGatewayConfigs PaymentGatewayConfig[]
+  refunds               Refund[]
+  deliveries            MessageDelivery[]
+  reminders             ScheduledReminder[]
+  taxBp                 Int                    @default(0)
+  brandColor            String                 @default("#2563EB")
+  allowedWidgetDomains  String[]               @default([])
+  suspendedAt           DateTime?
+}
+
+model User {
+  id              String       @id @default(uuid())
+  email           String       @unique
+  name            String
+  passwordHash    String
+  isPlatformAdmin Boolean      @default(false)
+  memberships     Membership[]
+}
+
+model Membership {
+  id      String @id @default(uuid())
+  userId  String
+  hotelId String
+  role    Role
+  user    User   @relation(fields: [userId], references: [id])
+  hotel   Hotel  @relation(fields: [hotelId], references: [id])
+
+  @@unique([userId, hotelId])
+}
+
+model RoomType {
+  id           String @id @default(uuid())
+  hotelId      String
+  name         String
+  baseRate     Int
+  maxOccupancy Int
+  hotel        Hotel  @relation(fields: [hotelId], references: [id])
+  rooms        Room[]
+
+  @@index([hotelId])
+}
+
+model Room {
+  id           String             @id @default(uuid())
+  hotelId      String
+  roomTypeId   String
+  number       String
+  floor        Int
+  housekeeping String             @default("CLEAN")
+  hkAssigneeId String?
+  hkNotes      String?
+  archivedAt   DateTime?
+  hotel        Hotel              @relation(fields: [hotelId], references: [id])
+  roomType     RoomType           @relation(fields: [roomTypeId], references: [id])
+  nights       RoomNight[]
+  items        ReservationItem[]
+  blocks       MaintenanceBlock[]
+
+  @@unique([hotelId, number])
+}
+
+model Guest {
+  id           String        @id @default(uuid())
+  hotelId      String
+  name         String
+  email        String?
+  phone        String?
+  hotel        Hotel         @relation(fields: [hotelId], references: [id])
+  reservations Reservation[]
+
+  @@index([hotelId, email])
+}
+
+model Reservation {
+  id            String              @id @default(uuid())
+  hotelId       String
+  ref           String
+  guestId       String
+  status        ResStatus           @default(PENDING)
+  source        String              @default("DIRECT")
+  totalAmount   Int
+  depositPaid   Int                 @default(0)
+  notes         String?
+  discount      Int                 @default(0)
+  taxAmount     Int                 @default(0)
+  promoCode     String?
+  holdExpiresAt DateTime?
+  createdAt     DateTime            @default(now())
+  hotel         Hotel               @relation(fields: [hotelId], references: [id])
+  guest         Guest               @relation(fields: [guestId], references: [id])
+  items         ReservationItem[]
+  payments      Payment[]
+  refunds       Refund[]
+  deliveries    MessageDelivery[]
+  reminders     ScheduledReminder[]
+
+  @@unique([hotelId, ref])
+}
+
+model ReservationItem {
+  id            String      @id @default(uuid())
+  reservationId String
+  roomId        String
+  checkIn       DateTime    @db.Date
+  checkOut      DateTime    @db.Date
+  adults        Int         @default(1)
+  children      Int         @default(0)
+  nightlyRate   Int
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  room          Room        @relation(fields: [roomId], references: [id])
+  nights        RoomNight[]
+}
+
+model RoomNight {
+  id      String            @id @default(uuid())
+  roomId  String
+  night   DateTime          @db.Date
+  itemId  String?
+  blockId String?
+  room    Room              @relation(fields: [roomId], references: [id])
+  item    ReservationItem?  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  block   MaintenanceBlock? @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, night])
+}
+
+model Payment {
+  id                     String               @id @default(uuid())
+  reservationId          String
+  provider               String
+  providerRef            String?
+  providerTransactionRef String?
+  idempotencyKey         String               @unique
+  amount                 Int
+  status                 String               @default("PENDING")
+  createdAt              DateTime             @default(now())
+  reservation            Reservation          @relation(fields: [reservationId], references: [id])
+  refunds                Refund[]
+  transactions           PaymentTransaction[]
+}
+
+model Refund {
+  id             String      @id @default(uuid())
+  hotelId        String
+  reservationId  String
+  paymentId      String
+  amount         Int
+  reason         String      @default("")
+  providerRef    String?
+  idempotencyKey String      @unique
+  status         String      @default("PENDING")
+  createdAt      DateTime    @default(now())
+  createdBy      String?
+  hotel          Hotel       @relation(fields: [hotelId], references: [id])
+  reservation    Reservation @relation(fields: [reservationId], references: [id])
+  payment        Payment     @relation(fields: [paymentId], references: [id])
+
+  @@index([hotelId, createdAt])
+}
+
+model PaymentGatewayConfig {
+  id                       String   @id @default(uuid())
+  hotelId                  String
+  provider                 String
+  environment              String   @default("SANDBOX")
+  merchantId               String?
+  merchantSecretCiphertext String?
+  apiTokenCiphertext       String?
+  enabled                  Boolean  @default(false)
+  updatedAt                DateTime @updatedAt
+  hotel                    Hotel    @relation(fields: [hotelId], references: [id])
+
+  @@unique([hotelId, provider])
+}
+
+model PaymentTransaction {
+  id          String   @id @default(uuid())
+  paymentId   String
+  type        String
+  providerRef String?
+  amount      Int
+  status      String
+  createdAt   DateTime @default(now())
+  payment     Payment  @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId, createdAt])
+}
+
+model MessageDelivery {
+  id             String       @id @default(uuid())
+  hotelId        String
+  reservationId  String?
+  channel        String
+  messageType    String
+  recipient      String
+  subject        String?
+  body           String
+  status         String       @default("QUEUED")
+  providerRef    String?
+  error          String?
+  attempts       Int          @default(0)
+  nextAttemptAt  DateTime?
+  sentAt         DateTime?
+  idempotencyKey String       @unique
+  createdAt      DateTime     @default(now())
+  hotel          Hotel        @relation(fields: [hotelId], references: [id])
+  reservation    Reservation? @relation(fields: [reservationId], references: [id])
+
+  @@index([hotelId, status, nextAttemptAt])
+}
+
+model ScheduledReminder {
+  id            String      @id @default(uuid())
+  hotelId       String
+  reservationId String
+  type          String
+  scheduledFor  DateTime
+  status        String      @default("SCHEDULED")
+  processedAt   DateTime?
+  hotel         Hotel       @relation(fields: [hotelId], references: [id])
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+
+  @@unique([reservationId, type])
+  @@index([hotelId, status, scheduledFor])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  hotelId   String
+  userId    String?
+  action    String
+  entity    String
+  entityId  String
+  createdAt DateTime @default(now())
+  hotel     Hotel    @relation(fields: [hotelId], references: [id])
+}
+
+model RateRule {
+  id           String    @id @default(uuid())
+  hotelId      String
+  roomTypeId   String?
+  name         String
+  type         String // SEASON | SPECIAL | WEEKEND
+  startDate    DateTime? @db.Date
+  endDate      DateTime? @db.Date
+  multiplierBp Int // 10000 = 100%
+  active       Boolean   @default(true)
+  hotel        Hotel     @relation(fields: [hotelId], references: [id])
+
+  @@index([hotelId])
+}
+
+model PromoCode {
+  id         String    @id @default(uuid())
+  hotelId    String
+  code       String
+  percentOff Int
+  active     Boolean   @default(true)
+  validFrom  DateTime?
+  validTo    DateTime?
+  hotel      Hotel     @relation(fields: [hotelId], references: [id])
+
+  @@unique([hotelId, code])
+}
+
+model WebhookEvent {
+  id        String   @id @default(uuid())
+  provider  String
+  eventId   String
+  createdAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  hotelId   String
+  type      String
+  title     String
+  body      String    @default("")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  hotel     Hotel     @relation(fields: [hotelId], references: [id])
+
+  @@index([hotelId, createdAt])
+}
+
+model MaintenanceBlock {
+  id        String      @id @default(uuid())
+  hotelId   String
+  roomId    String
+  startDate DateTime    @db.Date
+  endDate   DateTime    @db.Date // exclusive, like check-out
+  reason    String      @default("")
+  hotel     Hotel       @relation(fields: [hotelId], references: [id])
+  room      Room        @relation(fields: [roomId], references: [id])
+  nights    RoomNight[]
+
+  @@index([hotelId, startDate])
+}
