@@ -42,6 +42,11 @@ function Metric({ label, value, hint, tone, icon }: any) {
   return <div className="metric-card"><div className="metric-head"><span>{label}</span><span className={`metric-icon ${tone || "blue"}`}>{icon}</span></div><strong>{value}</strong><small>{hint}</small></div>
 }
 
+function QuickActions() {
+  const actions = [["/calendar", "New booking", "Create a reservation", "+", "blue"], ["/reservations", "Review bookings", "Confirm or update stays", "B", "purple"], ["/housekeeping", "Housekeeping", "Update room readiness", "H", "green"], ["/setup", "Room setup", "Rates and maintenance", "S", "orange"], ["/reservations", "Record payment", "Collect an outstanding balance", "$", "yellow"], ["/widget", "Booking website", "Open your direct channel", "W", "slate"]]
+  return <section className="panel quick-actions-panel"><div className="panel-heading"><div><h2>Quick actions</h2><p>Common tasks for today</p></div></div><div className="quick-actions-grid">{actions.map(([href, title, description, icon, tone]) => <Link key={title} href={href} className="quick-action"><span className={`quick-action-icon ${tone}`}>{icon}</span><span><strong>{title}</strong><small>{description}</small></span><b>&gt;</b></Link>)}</div></section>
+}
+
 export default function Dashboard() {
   const [d, setD] = useState<any>(null), [err, setErr] = useState("")
   const today = iso(new Date())
@@ -104,6 +109,8 @@ export default function Dashboard() {
       <Metric label="Available tonight" value={availability} hint="Ready to sell" icon="⌂" tone="blue" />
       <Metric label="Outstanding balance" value={lkr(d.outstanding)} hint="Across active bookings" icon="$" tone="orange" />
     </section>
+
+    <QuickActions />
 
     <section className="dashboard-columns">
       <div className="panel chart-panel"><div className="panel-heading"><div><h2>Revenue performance</h2><p>Payments received over the last seven days</p></div><div className="panel-value">{lkr(d.collected)}</div></div><TrendChart points={d.trend} /><div className="chart-footer"><span><i className="legend-dot" /> Collected payments</span><span className="period-pill">Last 7 days</span><Link href="/reports">View full report →</Link></div></div>
