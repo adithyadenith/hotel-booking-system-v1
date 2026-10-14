@@ -32,6 +32,12 @@ function SourceRevenue({ rows }: { rows: { source: string; value: number }[] }) 
   return <div className="source-revenue-list">{rows.length ? rows.map(x => <div className="source-revenue-row" key={x.source}><div className="source-revenue-label"><span>{x.source}</span><strong>{lkr(x.value)}</strong></div><div className="source-revenue-track"><span style={{ width: `${Math.max(5, x.value / max * 100)}%` }} /></div></div>) : <div className="empty-state">Revenue sources will appear after bookings are made.</div>}</div>
 }
 
+function StatusChart({ rows, total }: { rows: { key: string; label: string; color: string; count: number; percent: number }[]; total: number }) {
+  let start = 0
+  const stops = rows.map(x => { const end = start + x.percent; const part = `${x.color} ${start}% ${end}%`; start = end; return part }).join(", ")
+  return <div className="status-chart-layout"><div className="status-donut" style={{ background: rows.length ? `conic-gradient(${stops})` : "#e9eef5" }}><div className="status-donut-hole"><strong>{total}</strong><span>Total</span></div></div><div className="status-legend">{rows.length ? rows.map(x => <div className="status-legend-row" key={x.key}><span><i style={{ background: x.color }} />{x.label}</span><strong>{x.count} <small>{x.percent}%</small></strong></div>) : <p className="muted">No bookings yet.</p>}</div></div>
+}
+
 function Metric({ label, value, hint, tone, icon }: any) {
   return <div className="metric-card"><div className="metric-head"><span>{label}</span><span className={`metric-icon ${tone || "blue"}`}>{icon}</span></div><strong>{value}</strong><small>{hint}</small></div>
 }
@@ -101,7 +107,7 @@ export default function Dashboard() {
 
     <section className="dashboard-columns">
       <div className="panel chart-panel"><div className="panel-heading"><div><h2>Revenue performance</h2><p>Payments received over the last seven days</p></div><div className="panel-value">{lkr(d.collected)}</div></div><TrendChart points={d.trend} /><div className="chart-footer"><span><i className="legend-dot" /> Collected payments</span><span className="period-pill">Last 7 days</span><Link href="/reports">View full report →</Link></div></div>
-      <div className="panel"><div className="panel-heading"><div><h2>Booking statistics</h2><p>{d.reservations.length} reservations in the system</p></div><Link href="/reservations" className="panel-link">View all</Link></div><div className="status-list">{breakdown.length ? breakdown.map(x => <div className="status-row" key={x.key}><div className="status-label"><i style={{ background: x.color }} />{x.label}<strong>{x.count}</strong></div><div className="status-track"><span style={{ width: `${Math.max(x.percent, 4)}%`, background: x.color }} /></div><small>{x.percent}%</small></div>) : <p className="muted">No bookings yet.</p>}</div></div>
+      <div className="panel"><div className="panel-heading"><div><h2>Booking status</h2><p>{d.reservations.length} reservations in the system</p></div><Link href="/reservations" className="panel-link">View all</Link></div><StatusChart rows={breakdown} total={d.reservations.length} /></div>
     </section>
 
     <section className="panel revenue-sources-panel"><div className="panel-heading"><div><h2>Revenue by booking source</h2><p>Collected payments grouped by channel</p></div><Link href="/reports" className="panel-link">View reports →</Link></div><SourceRevenue rows={d.sourceRevenue} /></section>
