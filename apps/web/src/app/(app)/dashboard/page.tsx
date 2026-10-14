@@ -22,9 +22,14 @@ function TrendChart({ points }: { points: { label: string; value: number }[] }) 
     <svg className="trend-chart" viewBox="0 0 640 210" role="img" aria-label="Revenue over the last seven days">
       {[38, 83, 128, 173].map(y => <line key={y} x1="20" x2="620" y1={y} y2={y} className="chart-grid" />)}
       <polyline points={coords} className="trend-line" />
-      {points.map((x, i) => { const y = 178 - (x.value / max) * 140; return <g key={x.label}><circle cx={i * 100 + 20} cy={y} r="4" className="trend-dot" /><text x={i * 100 + 20} y="202" textAnchor="middle" className="chart-label">{x.label}</text></g> })}
+      {points.map((x, i) => { const y = 178 - (x.value / max) * 140; return <g key={x.label}><circle cx={i * 100 + 20} cy={y} r="4" className="trend-dot"><title>{x.label}: {lkr(x.value)}</title></circle><text x={i * 100 + 20} y="202" textAnchor="middle" className="chart-label">{x.label}</text></g> })}
     </svg>
   </div>
+}
+
+function SourceRevenue({ rows }: { rows: { source: string; value: number }[] }) {
+  const max = Math.max(...rows.map(x => x.value), 1)
+  return <div className="source-revenue-list">{rows.length ? rows.map(x => <div className="source-revenue-row" key={x.source}><div className="source-revenue-label"><span>{x.source}</span><strong>{lkr(x.value)}</strong></div><div className="source-revenue-track"><span style={{ width: `${Math.max(5, x.value / max * 100)}%` }} /></div></div>) : <div className="empty-state">Revenue sources will appear after bookings are made.</div>}</div>
 }
 
 function Metric({ label, value, hint, tone, icon }: any) {
@@ -53,10 +58,13 @@ export default function Dashboard() {
         const key = iso(date)
         return { label: date.toLocaleDateString(undefined, { weekday: "short" }), value: reservations.filter((r: any) => r.createdAt?.slice(0, 10) === key).reduce((sum: number, r: any) => sum + r.depositPaid, 0) }
       })
+      const sourceTotals: Record<string, number> = {}
+      active.forEach((r: any) => { const source = (r.source || "DIRECT").toUpperCase(); sourceTotals[source] = (sourceTotals[source] || 0) + r.depositPaid })
+      const sourceRevenue = Object.entries(sourceTotals).map(([source, value]) => ({ source, value })).sort((a, b) => b.value - a.value)
       setD({ rooms, reservations, arrivals, departures, total: rooms.length, booked, occupied, collected, outstanding,
         pending: reservations.filter((r: any) => r.status === "PENDING").length,
         dirty: rooms.filter((r: any) => r.housekeeping === "DIRTY").length,
-        recent: reservations.slice(0, 6), trend })
+        recent: reservations.slice(0, 6), trend, sourceRevenue })
     } catch (e: any) { setErr(e.message) }
   })() }, [today])
 
@@ -92,9 +100,11 @@ export default function Dashboard() {
     </section>
 
     <section className="dashboard-columns">
-      <div className="panel chart-panel"><div className="panel-heading"><div><h2>Revenue collected</h2><p>Payments received over the last seven days</p></div><div className="panel-value">{lkr(d.collected)}</div></div><TrendChart points={d.trend} /><div className="chart-footer"><span><i className="legend-dot" /> Collected payments</span><Link href="/reports">View full report →</Link></div></div>
+      <div className="panel chart-panel"><div className="panel-heading"><div><h2>Revenue performance</h2><p>Payments received over the last seven days</p></div><div className="panel-value">{lkr(d.collected)}</div></div><TrendChart points={d.trend} /><div className="chart-footer"><span><i className="legend-dot" /> Collected payments</span><span className="period-pill">Last 7 days</span><Link href="/reports">View full report →</Link></div></div>
       <div className="panel"><div className="panel-heading"><div><h2>Booking statistics</h2><p>{d.reservations.length} reservations in the system</p></div><Link href="/reservations" className="panel-link">View all</Link></div><div className="status-list">{breakdown.length ? breakdown.map(x => <div className="status-row" key={x.key}><div className="status-label"><i style={{ background: x.color }} />{x.label}<strong>{x.count}</strong></div><div className="status-track"><span style={{ width: `${Math.max(x.percent, 4)}%`, background: x.color }} /></div><small>{x.percent}%</small></div>) : <p className="muted">No bookings yet.</p>}</div></div>
     </section>
+
+    <section className="panel revenue-sources-panel"><div className="panel-heading"><div><h2>Revenue by booking source</h2><p>Collected payments grouped by channel</p></div><Link href="/reports" className="panel-link">View reports →</Link></div><SourceRevenue rows={d.sourceRevenue} /></section>
 
     <section className="dashboard-columns operations-columns">
       <div className="panel"><div className="panel-heading"><div><h2>Today’s arrivals</h2><p>Guests expected to check in</p></div><Link href="/calendar" className="panel-link">Calendar →</Link></div>{d.arrivals.length ? <div className="arrival-list">{d.arrivals.slice(0, 5).map((x: any) => <div className="arrival-row" key={x.id}><div className="avatar">{x.reservation.guest.name.slice(0, 1).toUpperCase()}</div><div className="arrival-main"><strong>{x.reservation.guest.name}</strong><span>{x.room?.number ? `Room ${x.room.number}` : "Room assignment pending"} · {x.reservation.ref}</span></div><span className="time-pill">{displayTime(x.checkIn)}</span></div>)}</div> : <div className="empty-state">No arrivals scheduled for today.</div>}</div>
