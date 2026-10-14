@@ -1,9 +1,10 @@
 "use client"
 import { useEffect, useState, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { api, iso, addDays, STATUS } from "@/lib/api"
 const DAYS = 14
 export default function Calendar() {
-  const [start, setStart] = useState(() => new Date(iso(new Date()) + "T00:00:00Z")), [rooms, setRooms] = useState<any[]>([]), [err, setErr] = useState("")
+  const params = useSearchParams(), [start, setStart] = useState(() => { const date = params.get("date"); return new Date((date || iso(new Date())) + "T00:00:00Z") }), [rooms, setRooms] = useState<any[]>([]), [err, setErr] = useState("")
   const [sel, setSel] = useState<any>(null), [name, setName] = useState(""), [nights, setNights] = useState(1), [adults, setAdults] = useState(1), [busy, setBusy] = useState(false)
   const load = useCallback(async () => { try { setRooms(await api("/calendar?from=" + iso(start) + "&to=" + iso(addDays(start, DAYS)))) } catch (e: any) { setErr(e.message) } }, [start])
   useEffect(() => { load() }, [load])

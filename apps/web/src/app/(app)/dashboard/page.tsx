@@ -120,10 +120,10 @@ export default function Dashboard() {
     <QuickActions />
 
     <AlertsPanel alerts={[
-      { title: "Unpaid bookings", detail: d.unpaid.length ? `${d.unpaid.length} active booking${d.unpaid.length === 1 ? "" : "s"} with a balance due` : "All active bookings are paid", count: d.unpaid.length, icon: "$", tone: d.unpaid.length ? "warning" : "success", href: "/reservations" },
+      { title: "Unpaid bookings", detail: d.unpaid.length ? `${d.unpaid.length} active booking${d.unpaid.length === 1 ? "" : "s"} with a balance due` : "All active bookings are paid", count: d.unpaid.length, icon: "$", tone: d.unpaid.length ? "warning" : "success", href: "/reservations?filter=unpaid" },
       { title: "Dirty rooms", detail: d.dirty ? `${d.dirty} room${d.dirty === 1 ? "" : "s"} waiting for housekeeping` : "All rooms are ready", count: d.dirty, icon: "H", tone: d.dirty ? "danger" : "success", href: "/housekeeping" },
-      { title: "Arrivals today", detail: d.arrivals.length ? `${d.arrivals.length} guest${d.arrivals.length === 1 ? "" : "s"} expected to check in` : "No arrivals scheduled today", count: d.arrivals.length, icon: "A", tone: d.arrivals.length ? "info" : "success", href: "/calendar" },
-      { title: "Maintenance blocks", detail: d.maintenanceBlocks.length ? `${d.maintenanceBlocks.length} room block${d.maintenanceBlocks.length === 1 ? "" : "s"} affects availability` : "No active maintenance blocks", count: d.maintenanceBlocks.length, icon: "M", tone: d.maintenanceBlocks.length ? "purple" : "success", href: "/setup" }
+      { title: "Arrivals today", detail: d.arrivals.length ? `${d.arrivals.length} guest${d.arrivals.length === 1 ? "" : "s"} expected to check in` : "No arrivals scheduled today", count: d.arrivals.length, icon: "A", tone: d.arrivals.length ? "info" : "success", href: `/calendar?date=${today}` },
+      { title: "Maintenance blocks", detail: d.maintenanceBlocks.length ? `${d.maintenanceBlocks.length} room block${d.maintenanceBlocks.length === 1 ? "" : "s"} affects availability` : "No active maintenance blocks", count: d.maintenanceBlocks.length, icon: "M", tone: d.maintenanceBlocks.length ? "purple" : "success", href: "/setup?tab=maint" }
     ]} />
 
     <section className="dashboard-columns">

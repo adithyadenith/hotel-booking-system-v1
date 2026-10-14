@@ -1,5 +1,6 @@
 "use client"
 import { useCallback, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { api, lkr, session } from "@/lib/api"
 
 function useLoad(path: string) {
@@ -79,7 +80,8 @@ function Gateway({ setErr }: any) {
 }
 
 export default function Setup() {
-  const [tab, setTab] = useState("rooms"), [err, setErr] = useState(""), [role, setRole] = useState("")
+  const params = useSearchParams(), [tab, setTab] = useState(params.get("tab") || "rooms"), [err, setErr] = useState(""), [role, setRole] = useState("")
+  useEffect(() => { if (params.get("tab")) setTab(params.get("tab")!) }, [params])
   useEffect(() => setRole(session()?.role), [])
   return <><h1>Setup</h1>
     <div className="row">{[["rooms", "Rooms"], ["rates", "Rates & promos"], ["maint", "Maintenance"], ...(role === "ADMIN" ? [["staff", "Staff"], ["gateway", "Payments"]] : [])].map(([k, l]) => <button key={k} className={tab === k ? "" : "sec"} onClick={() => { setTab(k); setErr("") }}>{l}</button>)}</div>
