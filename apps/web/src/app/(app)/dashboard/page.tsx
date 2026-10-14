@@ -47,6 +47,10 @@ function QuickActions() {
   return <section className="panel quick-actions-panel"><div className="panel-heading"><div><h2>Quick actions</h2><p>Common tasks for today</p></div></div><div className="quick-actions-grid">{actions.map(([href, title, description, icon, tone]) => <Link key={title} href={href} className="quick-action"><span className={`quick-action-icon ${tone}`}>{icon}</span><span><strong>{title}</strong><small>{description}</small></span><b>&gt;</b></Link>)}</div></section>
 }
 
+function AlertsPanel({ alerts }: { alerts: { title: string; detail: string; count: number; icon: string; tone: string; href: string }[] }) {
+  return <section className="panel alerts-panel"><div className="panel-heading"><div><h2>Alerts and attention</h2><p>Items that may need staff action today</p></div><span className="alert-total">{alerts.reduce((sum, x) => sum + x.count, 0)} open</span></div><div className="alerts-grid">{alerts.map(x => <Link href={x.href} key={x.title} className="alert-card"><span className={`alert-icon ${x.tone}`}>{x.icon}</span><span className="alert-copy"><strong>{x.title}</strong><small>{x.detail}</small></span><b>{x.count}</b></Link>)}</div></section>
+}
+
 export default function Dashboard() {
   const [d, setD] = useState<any>(null), [err, setErr] = useState("")
   const today = iso(new Date())
@@ -64,6 +68,9 @@ export default function Dashboard() {
       const occupied = rooms.filter((r: any) => r.items.some((i: any) => i.reservation.status === "CHECKED_IN")).length
       const collected = active.reduce((sum: number, r: any) => sum + r.depositPaid, 0)
       const outstanding = active.reduce((sum: number, r: any) => sum + r.totalAmount - r.depositPaid, 0)
+      const unpaid = active.filter((r: any) => r.totalAmount > r.depositPaid)
+      const dirtyRooms = rooms.filter((r: any) => r.housekeeping === "DIRTY")
+      const maintenanceBlocks = rooms.flatMap((r: any) => (r.blocks || []).map((b: any) => ({ ...b, roomNumber: r.number })))
       const trend = Array.from({ length: 7 }, (_, offset) => {
         const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() - (6 - offset))
         const key = iso(date)
@@ -74,7 +81,7 @@ export default function Dashboard() {
       const sourceRevenue = Object.entries(sourceTotals).map(([source, value]) => ({ source, value })).sort((a, b) => b.value - a.value)
       setD({ rooms, reservations, arrivals, departures, total: rooms.length, booked, occupied, collected, outstanding,
         pending: reservations.filter((r: any) => r.status === "PENDING").length,
-        dirty: rooms.filter((r: any) => r.housekeeping === "DIRTY").length,
+        dirty: dirtyRooms.length, unpaid, maintenanceBlocks,
         recent: reservations.slice(0, 6), trend, sourceRevenue })
     } catch (e: any) { setErr(e.message) }
   })() }, [today])
@@ -111,6 +118,13 @@ export default function Dashboard() {
     </section>
 
     <QuickActions />
+
+    <AlertsPanel alerts={[
+      { title: "Unpaid bookings", detail: d.unpaid.length ? `${d.unpaid.length} active booking${d.unpaid.length === 1 ? "" : "s"} with a balance due` : "All active bookings are paid", count: d.unpaid.length, icon: "$", tone: d.unpaid.length ? "warning" : "success", href: "/reservations" },
+      { title: "Dirty rooms", detail: d.dirty ? `${d.dirty} room${d.dirty === 1 ? "" : "s"} waiting for housekeeping` : "All rooms are ready", count: d.dirty, icon: "H", tone: d.dirty ? "danger" : "success", href: "/housekeeping" },
+      { title: "Arrivals today", detail: d.arrivals.length ? `${d.arrivals.length} guest${d.arrivals.length === 1 ? "" : "s"} expected to check in` : "No arrivals scheduled today", count: d.arrivals.length, icon: "A", tone: d.arrivals.length ? "info" : "success", href: "/calendar" },
+      { title: "Maintenance blocks", detail: d.maintenanceBlocks.length ? `${d.maintenanceBlocks.length} room block${d.maintenanceBlocks.length === 1 ? "" : "s"} affects availability` : "No active maintenance blocks", count: d.maintenanceBlocks.length, icon: "M", tone: d.maintenanceBlocks.length ? "purple" : "success", href: "/setup" }
+    ]} />
 
     <section className="dashboard-columns">
       <div className="panel chart-panel"><div className="panel-heading"><div><h2>Revenue performance</h2><p>Payments received over the last seven days</p></div><div className="panel-value">{lkr(d.collected)}</div></div><TrendChart points={d.trend} /><div className="chart-footer"><span><i className="legend-dot" /> Collected payments</span><span className="period-pill">Last 7 days</span><Link href="/reports">View full report →</Link></div></div>
