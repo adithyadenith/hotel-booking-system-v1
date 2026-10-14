@@ -20,11 +20,12 @@ import { DeliveryService } from './notifications/delivery.service'
 import { DeliveryController } from './notifications/delivery.controller'
 import { AuditController } from './audit/audit.controller'
 import { SearchController } from './search/search.controller'
+import { AddOnsController } from './add-ons/add-ons.controller'
 
 @Module({
   imports: [JwtModule.register({ global: true, secret: process.env.JWT_SECRET!, signOptions: { expiresIn: '12h' } }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }])],
-  controllers: [AuthController, ReservationsController, PaymentsController, NotificationsController, DeliveryController, HousekeepingController, GuestsController, ReportsController, PublicController, WidgetAdminController, AdminController, PlatformController, AuditController, SearchController],
+  controllers: [AuthController, ReservationsController, PaymentsController, NotificationsController, DeliveryController, HousekeepingController, GuestsController, ReportsController, PublicController, WidgetAdminController, AdminController, PlatformController, AuditController, SearchController, AddOnsController],
   providers: [ReservationsService, PaymentsService, NotificationsService, PublicService, DeliveryService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

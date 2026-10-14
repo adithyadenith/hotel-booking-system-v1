@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { api, API, session } from "@/lib/api"
 
-const NAV = [["/dashboard", "Dashboard", "D"], ["/calendar", "Calendar", "C"], ["/reservations", "Bookings", "B"], ["/guests", "Guests", "G"], ["/housekeeping", "Housekeeping", "H"], ["/reports", "Reports", "R"], ["/widget", "Booking Widget", "W"], ["/setup", "Setup", "S"], ["/settings", "Settings", "O"], ["/audit", "Audit log", "A"], ["/notifications", "Notifications", "N"]]
+const NAV = [["/dashboard", "Dashboard", "D"], ["/calendar", "Calendar", "C"], ["/reservations", "Bookings", "B"], ["/add-ons", "Add-ons", "+"], ["/guests", "Guests", "G"], ["/housekeeping", "Housekeeping", "H"], ["/reports", "Reports", "R"], ["/widget", "Booking Widget", "W"], ["/setup", "Setup", "S"], ["/settings", "Settings", "O"], ["/audit", "Audit log", "A"], ["/notifications", "Notifications", "N"]]
 const money = (cents: number) => `LKR ${(cents / 100).toLocaleString()}`
 
 function SearchDropdown({ busy, results, query, close }: any) {
@@ -51,7 +51,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <nav className="side">
       <div className="brand"><span className="brand-mark">HP</span><span className="brand-copy"><strong>{s.hotelName || "Hotel platform"}</strong><small>HOTEL MANAGEMENT</small></span></div>
       <div className="side-label">MANAGEMENT</div>
-      <div className="nav-list">{NAV.filter(([h]) => s.role !== "HOUSEKEEPING" || h === "/housekeeping").map(([h, l, icon]) => <Link key={h} href={h} className={path === h ? "on" : ""} title={collapsed ? l : undefined}><span className="nav-icon">{icon}</span><span className="nav-label">{l}</span>{l === "Notifications" && unread > 0 && <span className="nav-badge">{unread > 9 ? "9+" : unread}</span>}</Link>)}</div>
+      <div className="nav-list">{NAV.filter(([h]) => (s.role !== "HOUSEKEEPING" || h === "/housekeeping") && (h !== "/add-ons" || ["ADMIN", "MANAGER"].includes(s.role))).map(([h, l, icon]) => <Link key={h} href={h} className={path === h ? "on" : ""} title={collapsed ? l : undefined}><span className="nav-icon">{icon}</span><span className="nav-label">{l}</span>{l === "Notifications" && unread > 0 && <span className="nav-badge">{unread > 9 ? "9+" : unread}</span>}</Link>)}</div>
       <div className="side-spacer" />
       <Link href="/widget" className="website-link" title={collapsed ? "Booking website" : undefined}><span className="nav-icon">&gt;</span><span className="nav-label">Booking website</span></Link>
       <button className="collapse-btn" onClick={() => setCollapsed(x => !x)}><span>{collapsed ? ">" : "<"}</span><span className="nav-label">Collapse menu</span></button>

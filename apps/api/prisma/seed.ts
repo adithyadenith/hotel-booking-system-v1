@@ -18,6 +18,17 @@ async function main() {
     { hotelId: hotel.id, name: 'Weekend (Fri/Sat nights)', type: 'WEEKEND', multiplierBp: 12000 },
     { hotelId: hotel.id, name: 'December peak season', type: 'SEASON', startDate: new Date('2026-12-15'), endDate: new Date('2027-01-05'), multiplierBp: 14000 }] })
   await db.promoCode.create({ data: { hotelId: hotel.id, code: 'WELCOME10', percentOff: 10 } })
+  const extras = [
+    ['Breakfast', 'Daily breakfast for every guest', 'FOOD', 'PER_NIGHT', 350000, null],
+    ['Airport transfer', 'Private airport pickup or drop-off', 'TRANSPORT', 'PER_BOOKING', 500000, 3],
+    ['Extra bed', 'Rollaway bed prepared in the room', 'ROOM', 'PER_NIGHT', 250000, 5],
+    ['Dinner package', 'Three-course dinner package', 'FOOD', 'PER_BOOKING', 450000, 12],
+    ['Laundry', 'Laundry bag and same-day service', 'SERVICE', 'PER_BOOKING', 150000, 10],
+    ['Tours', 'Local sightseeing tour reservation', 'EXPERIENCE', 'PER_BOOKING', 750000, 8],
+  ] as const
+  for (const [name, description, category, pricingType, price, stockLimit] of extras) {
+    if (!(await db.addOn.findFirst({ where: { hotelId: hotel.id, name } }))) await db.addOn.create({ data: { hotelId: hotel.id, name, description, category, pricingType, price, stockLimit } })
+  }
   const users: [string, string, 'ADMIN' | 'MANAGER' | 'RECEPTIONIST' | 'HOUSEKEEPING'][] = [
     ['admin@demo.lk', 'Nimal Perera', 'ADMIN'], ['manager@demo.lk', 'Kumari Silva', 'MANAGER'],
     ['reception@demo.lk', 'Tharindu Fernando', 'RECEPTIONIST'], ['clean@demo.lk', 'Sunil Jayasinghe', 'HOUSEKEEPING']]

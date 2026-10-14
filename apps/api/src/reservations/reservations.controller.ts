@@ -13,4 +13,6 @@ export class ReservationsController {
   @Post('reservations') @Roles('ADMIN', 'MANAGER', 'RECEPTIONIST') create(@Req() r: any, @Body() b: unknown) { return this.s.create(r.hotelId, r.user.id, b) }
   @Post('reservations/:id/:action') @Roles('ADMIN', 'MANAGER', 'RECEPTIONIST')
   act(@Req() r: any, @Param('id') id: string, @Param('action') a: string) { return this.s.transition(r.hotelId, r.user.id, id, a) }
+  @Post('reservations/:id/add-ons') @Roles('ADMIN', 'MANAGER', 'RECEPTIONIST')
+  addOn(@Req() r: any, @Param('id') id: string, @Body() b: unknown) { return this.s.addOn(r.hotelId, r.user.id, id, b) }
 }

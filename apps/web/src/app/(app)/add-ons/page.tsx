@@ -1,0 +1,21 @@
+"use client"
+import { useEffect, useState } from "react"
+import { api, lkr } from "@/lib/api"
+
+const categories = ["FOOD", "TRANSPORT", "ROOM", "SERVICE", "EXPERIENCE", "EXTRA"]
+
+export default function AddOns() {
+  const [items, setItems] = useState<any[]>([]), [err, setErr] = useState(""), [saving, setSaving] = useState(false)
+  async function load() { try { setItems(await api("/add-ons")); setErr("") } catch (e: any) { setErr(e.message) } }
+  useEffect(() => { load() }, [])
+  async function create(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault(); const form = e.currentTarget; const data = new FormData(form); setSaving(true)
+    try { await api("/add-ons", { method: "POST", body: { name: data.get("name"), description: data.get("description") || null, category: data.get("category"), pricingType: data.get("pricingType"), price: Math.round(Number(data.get("price")) * 100), stockLimit: data.get("stockLimit") ? Number(data.get("stockLimit")) : null } }); form.reset(); await load() } catch (x: any) { setErr(x.message) } finally { setSaving(false) }
+  }
+  async function toggle(item: any) { try { await api(`/add-ons/${item.id}`, { method: "PATCH", body: { active: !item.active } }); await load() } catch (e: any) { setErr(e.message) } }
+  return <div className="addons-page"><div className="addons-hero"><div><span className="booking-kicker">REVENUE EXTRAS</span><h1>Add-ons & extras</h1><p>Offer useful services during direct booking and keep stock under control.</p></div><span className="addons-count">{items.filter(x => x.active).length} active</span></div>{err && <div className="err">{err}</div>}
+    <div className="addons-layout"><section className="card addons-form-card"><div className="addons-heading"><div><h2>Create an add-on</h2><p>Guests will see active extras after selecting a room.</p></div><span className="addons-icon">+</span></div><form onSubmit={create} className="addons-form"><label>Name<input name="name" placeholder="e.g. Breakfast" required /></label><label>Category<select name="category" defaultValue="EXTRA">{categories.map(x => <option key={x}>{x}</option>)}</select></label><label>Description<textarea name="description" rows={3} placeholder="What is included?" /></label><div className="addons-form-row"><label>Price (LKR)<input name="price" type="number" min="0" step="0.01" placeholder="3500" required /></label><label>Pricing<select name="pricingType"><option value="PER_NIGHT">Per night</option><option value="PER_BOOKING">Per booking</option></select></label><label>Stock limit <small>blank = unlimited</small><input name="stockLimit" type="number" min="0" placeholder="Unlimited" /></label></div><button disabled={saving}>{saving ? "Adding..." : "Add add-on"} <span>→</span></button></form></section>
+      <section className="card addons-list-card"><div className="addons-heading"><div><h2>Your add-ons</h2><p>Prices are stored in LKR and applied to the reservation total.</p></div></div>{items.length === 0 ? <div className="addons-empty"><strong>No add-ons yet</strong><span>Create breakfast, transfers, experiences, or other paid extras.</span></div> : <div className="addons-list">{items.map(item => <div className={`addon-row ${item.active ? "" : "inactive"}`} key={item.id}><div className="addon-mark">{item.name.slice(0, 1).toUpperCase()}</div><div className="addon-copy"><strong>{item.name}</strong><small>{item.description || "No description"}</small><span>{item.category} · {item.pricingType === "PER_NIGHT" ? "Per night" : "Per booking"} · {item.stockLimit === null ? "Unlimited stock" : `${item.stockLimit} in stock`}</span></div><div className="addon-price"><strong>{lkr(item.price)}</strong><small>{item.pricingType === "PER_NIGHT" ? "/ night" : "per booking"}</small></div><button className="sec" onClick={() => toggle(item)}>{item.active ? "Disable" : "Enable"}</button></div>)}</div>}</section></div>
+    <div className="addons-info-grid"><div><strong>Per-night extras</strong><span>Charged for every night in the stay, such as breakfast or an extra bed.</span></div><div><strong>Per-booking extras</strong><span>Charged once, such as airport transfers, tours, or laundry packages.</span></div><div><strong>Stock limits</strong><span>Reservations cannot exceed the available quantity for the requested dates.</span></div></div>
+  </div>
+}
