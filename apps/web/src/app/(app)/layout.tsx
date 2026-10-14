@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { api, API, session } from "@/lib/api"
-const NAV = [["/dashboard", "Dashboard"], ["/calendar", "Calendar"], ["/reservations", "Bookings"], ["/guests", "Guests"], ["/housekeeping", "Housekeeping"], ["/reports", "Reports"], ["/widget", "Booking Widget"], ["/setup", "Setup"], ["/audit", "Audit log"], ["/notifications", "Notifications"]]
+const NAV = [["/dashboard", "Dashboard"], ["/calendar", "Calendar"], ["/reservations", "Bookings"], ["/guests", "Guests"], ["/housekeeping", "Housekeeping"], ["/reports", "Reports"], ["/widget", "Booking Widget"], ["/setup", "Setup"], ["/settings", "Settings"], ["/audit", "Audit log"], ["/notifications", "Notifications"]]
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname(); const [s, setS] = useState<any>(null), [unread, setUnread] = useState(0), [toast, setToast] = useState("")
   useEffect(() => { const x = session(); if (!x) location.href = "/login"; else setS(x) }, [])

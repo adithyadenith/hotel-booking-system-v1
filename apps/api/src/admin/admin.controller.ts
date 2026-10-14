@@ -12,6 +12,12 @@ const Rule = z.object({ name: z.string().min(1).max(80), type: z.enum(['SEASON',
   startDate: day.optional(), endDate: day.optional(), multiplierBp: z.number().int().min(1000).max(50000) })
   .refine(r => r.type === 'WEEKEND' || (r.startDate && r.endDate && r.endDate >= r.startDate), { message: 'Season/special rules need a valid start and end date' })
 const Promo = z.object({ code: z.string().min(3).max(30).regex(/^[A-Za-z0-9_-]+$/), percentOff: z.number().int().min(1).max(100) })
+const HotelSettings = z.object({
+  name: z.string().min(2).max(120),
+  timezone: z.string().min(1).max(80),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  taxPercent: z.number().min(0).max(50)
+})
 const ROLES = ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING'] as const
 const dup = (e: unknown, msg: string) => { if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException(msg); throw e }
 const found = (n: number) => { if (!n) throw new NotFoundException() }
@@ -22,6 +28,16 @@ const found = (n: number) => { if (!n) throw new NotFoundException() }
 @Roles('ADMIN', 'MANAGER')
 export class AdminController {
   private async ownType(hotelId: string, id?: string | null) { if (id && !(await db.roomType.findFirst({ where: { id, hotelId } }))) throw new BadRequestException('Unknown room type') }
+
+  @Get('hotel-settings') settings(@Req() r: any) {
+    return db.hotel.findUniqueOrThrow({ where: { id: r.hotelId }, select: { name: true, slug: true, timezone: true, currency: true, taxBp: true, brandColor: true, widgetKey: true } })
+  }
+  @Patch('hotel-settings') @Roles('ADMIN') async updateSettings(@Req() r: any, @Body() b: unknown) {
+    const d = HotelSettings.parse(b)
+    const out = await db.hotel.update({ where: { id: r.hotelId }, data: { name: d.name, timezone: d.timezone, currency: d.currency, taxBp: Math.round(d.taxPercent * 100) }, select: { name: true, slug: true, timezone: true, currency: true, taxBp: true, brandColor: true, widgetKey: true } })
+    await db.auditLog.create({ data: { hotelId: r.hotelId, userId: r.user.id, action: 'HOTEL_SETTINGS_UPDATED', entity: 'Hotel', entityId: r.hotelId } })
+    return out
+  }
 
   @Get('room-types') types(@Req() r: any) { return db.roomType.findMany({ where: { hotelId: r.hotelId }, orderBy: { name: 'asc' } }) }
   @Post('room-types') createType(@Req() r: any, @Body() b: unknown) { return db.roomType.create({ data: { hotelId: r.hotelId, ...Type.parse(b) } }) }
