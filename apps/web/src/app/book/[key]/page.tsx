@@ -19,42 +19,28 @@ export default function Book() {
   useEffect(() => {
     if (!embed) return
     const post = () => parent.postMessage({ m89Height: document.body.scrollHeight + 20 }, "*")
-    const ro = new ResizeObserver(post); ro.observe(document.body); return () => ro.disconnect()
-  }, [embed])
-
+    const ro = new ResizeObserver(post); ro.observe(document.body); post(); return () => ro.disconnect()
+  }, [embed, cfg, types, pick, done, err])
   async function search(e: React.FormEvent) {
     e.preventDefault(); setErr(""); setPick(null); setBusy(true)
     try { setTypes(await call("/availability?from=" + from + "&to=" + to + "&adults=" + adults + "&children=" + children)) } catch (x: any) { setErr(x.message); setTypes(null) } finally { setBusy(false) }
   }
   async function book(e: React.FormEvent) {
     e.preventDefault(); setErr(""); setBusy(true)
-    try {
-      setDone(await call("/booking", { roomTypeId: pick.roomTypeId, checkIn: from, checkOut: to, adults, children, promoCode: g.promo || undefined,
-        guest: { name: g.name, email: g.email, phone: g.phone || undefined } }))
-    } catch (x: any) { setErr(x.message) } finally { setBusy(false) }
+    try { setDone(await call("/booking", { roomTypeId: pick.roomTypeId, checkIn: from, checkOut: to, adults, children, promoCode: g.promo || undefined, guest: { name: g.name, email: g.email, phone: g.phone || undefined } })) } catch (x: any) { setErr(x.message) } finally { setBusy(false) }
   }
-  if (!cfg && !err) return <div className="muted" style={{ padding: 20 }}>Loading…</div>
-  return <div style={{ ["--blue" as any]: cfg?.brandColor || "#2563EB", maxWidth: 760, margin: "0 auto", padding: 16 }}>
-    <h2>{cfg?.name}</h2>
-    {done ? <div className="card"><h3>Reservation held: {done.ref}</h3>
-      <p>Total {lkr(done.total)}. Complete payment within {done.holdMinutes} minutes or the room is released. A confirmation is recorded once payment is verified.</p>
-      <a className="btn" href={done.checkoutUrl} target="_blank" rel="noreferrer">Pay securely{done.provider === "SANDBOX" ? " (development sandbox)" : ""}</a></div> : <>
-      <form className="card" onSubmit={search}><div className="row">
-        <label>Check-in<br /><input type="date" value={from} min={iso(new Date())} onChange={e => setFrom(e.target.value)} required /></label>
-        <label>Check-out<br /><input type="date" value={to} min={from} onChange={e => setTo(e.target.value)} required /></label>
-        <label>Adults<br /><input type="number" min={1} value={adults} onChange={e => setAdults(+e.target.value)} style={{ width: 70 }} /></label>
-        <label>Children<br /><input type="number" min={0} value={children} onChange={e => setChildren(+e.target.value)} style={{ width: 70 }} /></label>
-        <button disabled={busy} style={{ alignSelf: "end" }}>{busy ? "Searching…" : "Check availability"}</button></div></form>
-      {err && <div className="err">{err}</div>}
-      {types && (types.length === 0 ? <p className="muted">No rooms available for those dates and guests. Try different dates.</p> :
-        <div style={{ display: "grid", gap: 12, marginTop: 16 }}>{types.map(t => <div className="card row" key={t.roomTypeId} style={{ justifyContent: "space-between", outline: pick?.roomTypeId === t.roomTypeId ? "2px solid var(--blue)" : "none" }}>
-          <div><b>{t.name}</b><div className="muted">Sleeps {t.maxOccupancy} · {t.available} left · {t.nights} night(s) from {lkr(Math.min(...t.nightly))}/night</div></div>
-          <div style={{ textAlign: "right" }}><b>{lkr(t.total)}</b><div className="muted">total incl. taxes</div><button onClick={() => setPick(t)}>Select</button></div></div>)}</div>)}
-      {pick && <form className="card" onSubmit={book} style={{ marginTop: 16 }}><h3>Your details: {pick.name}</h3>
-        <div className="row"><input placeholder="Full name" value={g.name} onChange={e => setG({ ...g, name: e.target.value })} required />
-          <input type="email" placeholder="Email" value={g.email} onChange={e => setG({ ...g, email: e.target.value })} required />
-          <input placeholder="Phone (optional)" value={g.phone} onChange={e => setG({ ...g, phone: e.target.value })} />
-          <input placeholder="Promo code" value={g.promo} onChange={e => setG({ ...g, promo: e.target.value })} /></div>
-        <button disabled={busy}>{busy ? "Booking…" : "Book and pay"}</button></form>}</>}
+  if (!cfg && !err) return <div className="booking-loading">Loading booking page...</div>
+  return <div className="booking-public" style={{ ["--booking-brand" as any]: cfg?.brandColor || "#2563EB" }}>
+    <header className="booking-header"><div className="booking-brand"><span className="booking-brand-mark">{(cfg?.name || "H").slice(0, 1).toUpperCase()}</span><span><strong>{cfg?.name || "Hotel booking"}</strong><small>DIRECT RESERVATIONS</small></span></div><div className="booking-secure"><span>+</span> Secure booking</div></header>
+    <main className="booking-main">
+      <div className="booking-intro"><div><span className="booking-kicker">BOOK DIRECT</span><h1>Plan your perfect stay</h1><p>Find your room, choose your dates, and reserve securely with {cfg?.name || "the hotel"}.</p></div><div className="booking-trust"><span>1</span><span>2</span><span>3</span><small>Search <b>›</b> Select <b>›</b> Confirm</small></div></div>
+      {done ? <section className="booking-success"><div className="success-mark">✓</div><span className="booking-kicker">RESERVATION HELD</span><h2>Your room is ready to be secured</h2><p>Reservation <strong>{done.ref}</strong> is held for {done.holdMinutes} minutes. Complete payment to confirm your stay.</p><div className="success-summary"><span>Total to pay</span><strong>{lkr(done.total)}</strong></div><a className="booking-primary booking-pay" href={done.checkoutUrl} target="_blank" rel="noreferrer">Pay securely <span>→</span></a><small className="booking-note">You will be redirected to the secure payment page.</small></section> : <>
+        <form className="booking-search-card" onSubmit={search}><div className="booking-card-title"><div><h2>Find your stay</h2><p>Check live availability and best available rates.</p></div><span className="booking-step">STEP 1 OF 2</span></div><div className="booking-fields"><label><span>Check-in</span><input type="date" value={from} min={iso(new Date())} onChange={e => setFrom(e.target.value)} required /></label><label><span>Check-out</span><input type="date" value={to} min={from} onChange={e => setTo(e.target.value)} required /></label><label><span>Adults</span><input type="number" min={1} max={20} value={adults} onChange={e => setAdults(+e.target.value)} required /></label><label><span>Children</span><input type="number" min={0} max={20} value={children} onChange={e => setChildren(+e.target.value)} required /></label><button className="booking-primary" disabled={busy}>{busy ? "Checking..." : "Check availability"}<span>→</span></button></div></form>
+        {err && <div className="booking-error">{err}</div>}
+        {types && <section className="booking-results"><div className="booking-section-heading"><div><span className="booking-kicker">AVAILABLE ROOMS</span><h2>{types.length ? "Choose your room" : "No rooms available"}</h2></div>{types.length > 0 && <span className="booking-result-note">Prices include available taxes</span>}</div>{types.length === 0 ? <div className="booking-empty"><strong>Try different dates or guest numbers</strong><span>There are no rooms available for this search.</span></div> : <div className="room-results">{types.map(t => <div className={`room-result ${pick?.roomTypeId === t.roomTypeId ? "selected" : ""}`} key={t.roomTypeId}><div className="room-result-visual"><span>{t.name.slice(0, 1).toUpperCase()}</span></div><div className="room-result-info"><div className="room-result-top"><h3>{t.name}</h3>{pick?.roomTypeId === t.roomTypeId && <span className="selected-label">Selected</span>}</div><p>Sleeps up to {t.maxOccupancy} guests <b>·</b> {t.available} available</p><small>{t.nights} night{t.nights === 1 ? "" : "s"} stay</small></div><div className="room-result-price"><strong>{lkr(t.total)}</strong><span>{lkr(Math.min(...t.nightly))} / night</span><button className={pick?.roomTypeId === t.roomTypeId ? "booking-secondary" : "booking-primary"} onClick={() => setPick(t)}>{pick?.roomTypeId === t.roomTypeId ? "Selected" : "Select room"}</button></div></div>)}</div>}</section>}
+        {pick && <form className="guest-details-card" onSubmit={book}><div className="booking-card-title"><div><span className="booking-kicker">STEP 2 OF 2</span><h2>Guest details</h2><p>We will use these details for your confirmation.</p></div><span className="selected-room-label">{pick.name} · {lkr(pick.total)}</span></div><div className="guest-fields"><label><span>Full name</span><input placeholder="Your full name" value={g.name} onChange={e => setG({ ...g, name: e.target.value })} required /></label><label><span>Email address</span><input type="email" placeholder="you@example.com" value={g.email} onChange={e => setG({ ...g, email: e.target.value })} required /></label><label><span>Phone <em>optional</em></span><input placeholder="+94 77 123 4567" value={g.phone} onChange={e => setG({ ...g, phone: e.target.value })} /></label><label><span>Promo code <em>optional</em></span><input placeholder="Enter code" value={g.promo} onChange={e => setG({ ...g, promo: e.target.value })} /></label></div><button className="booking-primary" disabled={busy}>{busy ? "Creating reservation..." : "Continue to secure payment"}<span>→</span></button></form>}
+      </>}
+      <footer className="booking-footer"><span>Direct booking with {cfg?.name || "the hotel"}</span><span>Secure payment · Best available rate</span></footer>
+    </main>
   </div>
 }
