@@ -79,16 +79,16 @@ export default function Dashboard() {
 
     <section className="metric-grid">
       <Metric label="Total rooms" value={d.total} hint="In your inventory" icon="▣" tone="navy" />
-      <Metric label="Available tonight" value={availability} hint="Ready to sell" icon="⌂" tone="green" />
-      <Metric label="Currently occupied" value={d.occupied} hint={`${occupancy}% occupancy`} icon="♢" tone="purple" />
-      <Metric label="Pending bookings" value={d.pending} hint="Awaiting confirmation" icon="◷" tone="yellow" />
+      <Metric label="Occupancy" value={`${occupancy}%`} hint={`${d.occupied} rooms occupied`} icon="%" tone="purple" />
+      <Metric label="Arrivals today" value={d.arrivals.length} hint="Guests expected" icon="↓" tone="blue" />
+      <Metric label="Departures today" value={d.departures.length} hint="Rooms to turn over" icon="↑" tone="slate" />
     </section>
 
     <section className="metric-grid lower-metrics">
-      <Metric label="Arrivals today" value={d.arrivals.length} hint="Guests expected" icon="↓" tone="blue" />
-      <Metric label="Departures today" value={d.departures.length} hint="Rooms to turn over" icon="↑" tone="slate" />
+      <Metric label="Pending bookings" value={d.pending} hint="Awaiting confirmation" icon="◷" tone="yellow" />
+      <Metric label="Revenue collected" value={lkr(d.collected)} hint="Deposits received" icon="$" tone="green" />
+      <Metric label="Available tonight" value={availability} hint="Ready to sell" icon="⌂" tone="blue" />
       <Metric label="Outstanding balance" value={lkr(d.outstanding)} hint="Across active bookings" icon="$" tone="orange" />
-      <Metric label="Rooms to clean" value={d.dirty} hint="Housekeeping attention" icon="✦" tone="red" />
     </section>
 
     <section className="dashboard-columns">
