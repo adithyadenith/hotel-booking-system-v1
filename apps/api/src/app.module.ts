@@ -21,11 +21,15 @@ import { DeliveryController } from './notifications/delivery.controller'
 import { AuditController } from './audit/audit.controller'
 import { SearchController } from './search/search.controller'
 import { AddOnsController } from './add-ons/add-ons.controller'
+import { PackagesController } from './packages/packages.controller'
+import { OperationsController } from './operations/operations.controller'
+import { CalendarFeedController, IntegrationsController, IntegrationsPublicController } from './integrations/integrations.controller'
+import { ChannelManagerController } from './channel-manager/channel-manager.controller'
 
 @Module({
   imports: [JwtModule.register({ global: true, secret: process.env.JWT_SECRET!, signOptions: { expiresIn: '12h' } }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }])],
-  controllers: [AuthController, ReservationsController, PaymentsController, NotificationsController, DeliveryController, HousekeepingController, GuestsController, ReportsController, PublicController, WidgetAdminController, AdminController, PlatformController, AuditController, SearchController, AddOnsController],
+  controllers: [AuthController, ReservationsController, PaymentsController, NotificationsController, DeliveryController, HousekeepingController, OperationsController, IntegrationsController, IntegrationsPublicController, CalendarFeedController, ChannelManagerController, GuestsController, ReportsController, PublicController, WidgetAdminController, AdminController, PlatformController, AuditController, SearchController, AddOnsController, PackagesController],
   providers: [ReservationsService, PaymentsService, NotificationsService, PublicService, DeliveryService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

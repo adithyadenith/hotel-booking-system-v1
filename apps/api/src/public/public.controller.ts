@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common'
 import { z } from 'zod'
 import { AuthGuard, Roles } from '../common/guards'
 import { db } from '../reservations/reservations.service'
@@ -12,6 +12,8 @@ export class PublicController {
   @Get('availability') availability(@Param('key') k: string, @Query() q: unknown, @Req() r: any) { return this.s.availability(k, q, r.headers.origin) }
   @Post('booking') book(@Param('key') k: string, @Body() b: unknown, @Req() r: any) { return this.s.book(k, b, r.headers.origin) }
   @Get('booking/:ref') status(@Param('key') k: string, @Param('ref') ref: string, @Query('email') e: string, @Req() r: any) { return this.s.status(k, ref, e, r.headers.origin) }
+  @Post('booking/:ref/cancel') cancel(@Param('key') k: string, @Param('ref') ref: string, @Body() b: unknown, @Req() r: any) { return this.s.cancel(k, ref, b, r.headers.origin) }
+  @Put('booking/:ref') modify(@Param('key') k: string, @Param('ref') ref: string, @Body() b: unknown, @Req() r: any) { return this.s.modify(k, ref, b, r.headers.origin) }
 }
 
 @Controller('widget-config')
@@ -22,7 +24,8 @@ export class WidgetAdminController {
     return db.hotel.findUniqueOrThrow({ where: { id: r.hotelId }, select: {
       widgetKey: true, name: true, brandColor: true, allowedWidgetDomains: true, widgetEnabled: true, widgetLogoUrl: true,
       widgetLayout: true, widgetMinNights: true, widgetAdvanceDays: true, widgetMaxGuests: true, widgetPaymentMode: true,
-      widgetDepositPercent: true, widgetConfirmationMessage: true, widgetConfirmationEmail: true,
+      widgetDepositPercent: true, widgetConfirmationMessage: true, widgetConfirmationEmail: true, widgetLanguages: true, widgetDefaultLanguage: true,
+      widgetCancellationPolicy: true, widgetCancellationHours: true, widgetSelfCancellationEnabled: true, widgetModificationEnabled: true,
     } })
   }
   @Patch() async set(@Req() r: any, @Body() b: unknown) {
@@ -34,6 +37,9 @@ export class WidgetAdminController {
       widgetAdvanceDays: z.number().int().min(0).max(730).optional(), widgetMaxGuests: z.number().int().min(1).max(40).optional(),
       widgetPaymentMode: z.enum(['FULL_PAYMENT', 'DEPOSIT', 'PAY_AT_HOTEL']).optional(), widgetDepositPercent: z.number().int().min(1).max(100).optional(),
       widgetConfirmationMessage: z.string().max(1000).nullable().optional(), widgetConfirmationEmail: z.boolean().optional(),
+      widgetLanguages: z.array(z.enum(['en', 'si', 'ta'])).min(1).max(3).optional(), widgetDefaultLanguage: z.enum(['en', 'si', 'ta']).optional(),
+      widgetCancellationPolicy: z.string().max(500).optional(), widgetCancellationHours: z.number().int().min(0).max(720).optional(),
+      widgetSelfCancellationEnabled: z.boolean().optional(), widgetModificationEnabled: z.boolean().optional(),
     }).parse(b)
     const domains = d.allowedWidgetDomains?.map(x => new URL(x).origin)
     const out = await db.hotel.update({ where: { id: r.hotelId }, data: {
@@ -44,10 +50,14 @@ export class WidgetAdminController {
       ...(d.widgetPaymentMode !== undefined ? { widgetPaymentMode: d.widgetPaymentMode } : {}), ...(d.widgetDepositPercent !== undefined ? { widgetDepositPercent: d.widgetDepositPercent } : {}),
       ...(d.widgetConfirmationMessage !== undefined ? { widgetConfirmationMessage: d.widgetConfirmationMessage || null } : {}),
       ...(d.widgetConfirmationEmail !== undefined ? { widgetConfirmationEmail: d.widgetConfirmationEmail } : {}),
+      ...(d.widgetLanguages !== undefined ? { widgetLanguages: d.widgetLanguages } : {}), ...(d.widgetDefaultLanguage !== undefined ? { widgetDefaultLanguage: d.widgetDefaultLanguage } : {}),
+      ...(d.widgetCancellationPolicy !== undefined ? { widgetCancellationPolicy: d.widgetCancellationPolicy } : {}), ...(d.widgetCancellationHours !== undefined ? { widgetCancellationHours: d.widgetCancellationHours } : {}),
+      ...(d.widgetSelfCancellationEnabled !== undefined ? { widgetSelfCancellationEnabled: d.widgetSelfCancellationEnabled } : {}), ...(d.widgetModificationEnabled !== undefined ? { widgetModificationEnabled: d.widgetModificationEnabled } : {}),
     }, select: {
       widgetKey: true, name: true, brandColor: true, allowedWidgetDomains: true, widgetEnabled: true, widgetLogoUrl: true, widgetLayout: true,
       widgetMinNights: true, widgetAdvanceDays: true, widgetMaxGuests: true, widgetPaymentMode: true, widgetDepositPercent: true,
-      widgetConfirmationMessage: true, widgetConfirmationEmail: true,
+      widgetConfirmationMessage: true, widgetConfirmationEmail: true, widgetLanguages: true, widgetDefaultLanguage: true, widgetCancellationPolicy: true,
+      widgetCancellationHours: true, widgetSelfCancellationEnabled: true, widgetModificationEnabled: true,
     } })
     await db.auditLog.create({ data: { hotelId: r.hotelId, userId: r.user.id, action: 'WIDGET_CONFIG_UPDATED', entity: 'Hotel', entityId: r.hotelId } })
     return out

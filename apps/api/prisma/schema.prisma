@@ -24,50 +24,76 @@ enum ResStatus {
 }
 
 model Hotel {
-  id                    String                 @id @default(uuid())
-  slug                  String                 @unique
-  name                  String
-  timezone              String                 @default("Asia/Colombo")
-  currency              String                 @default("LKR")
-  widgetKey             String                 @unique @default(uuid())
-  memberships           Membership[]
-  roomTypes             RoomType[]
-  rooms                 Room[]
-  guests                Guest[]
-  reservations          Reservation[]
-  auditLogs             AuditLog[]
-  rateRules             RateRule[]
-  maintenanceBlocks     MaintenanceBlock[]
-  notifications         Notification[]
-  promoCodes            PromoCode[]
-  paymentGatewayConfigs PaymentGatewayConfig[]
-  refunds               Refund[]
-  deliveries            MessageDelivery[]
-  reminders             ScheduledReminder[]
-  addOns                AddOn[]
-    taxBp                 Int                    @default(0)
-    brandColor            String                 @default("#2563EB")
-    widgetEnabled         Boolean                @default(true)
-    widgetLogoUrl         String?
-    widgetLayout          String                 @default("STANDARD")
-    widgetMinNights       Int                    @default(1)
-    widgetAdvanceDays     Int                    @default(0)
-    widgetMaxGuests       Int                    @default(20)
-    widgetPaymentMode     String                 @default("FULL_PAYMENT")
-    widgetDepositPercent  Int                    @default(100)
-    widgetConfirmationMessage String?
-    widgetConfirmationEmail Boolean               @default(true)
-    allowedWidgetDomains  String[]               @default([])
-  suspendedAt           DateTime?
+  id                            String                     @id @default(uuid())
+  slug                          String                     @unique
+  name                          String
+  timezone                      String                     @default("Asia/Colombo")
+  currency                      String                     @default("LKR")
+  widgetKey                     String                     @unique @default(uuid())
+  memberships                   Membership[]
+  roomTypes                     RoomType[]
+  rooms                         Room[]
+  guests                        Guest[]
+  reservations                  Reservation[]
+  auditLogs                     AuditLog[]
+  rateRules                     RateRule[]
+  maintenanceBlocks             MaintenanceBlock[]
+  notifications                 Notification[]
+  promoCodes                    PromoCode[]
+  paymentGatewayConfigs         PaymentGatewayConfig[]
+  refunds                       Refund[]
+  deliveries                    MessageDelivery[]
+  reminders                     ScheduledReminder[]
+  addOns                        AddOn[]
+  bookingPackages               BookingPackage[]
+  roomStatusHistory             RoomStatusHistory[]
+  roomInspections               RoomInspection[]
+  lostFoundItems                LostFoundItem[]
+  maintenanceWorkOrders         MaintenanceWorkOrder[]
+  housekeepingTasks             HousekeepingTask[]
+  integrationApiKeys            IntegrationApiKey[]
+  webhookEndpoints              WebhookEndpoint[]
+  calendarIntegrations          CalendarIntegration[]
+  integrationTemplates          IntegrationTemplate[]
+  channelConnections            ChannelConnection[]
+  channelReservationImports     ChannelReservationImport[]
+  channelStopSells              ChannelStopSell[]
+  taxBp                         Int                        @default(0)
+  brandColor                    String                     @default("#2563EB")
+  widgetEnabled                 Boolean                    @default(true)
+  widgetLogoUrl                 String?
+  widgetLayout                  String                     @default("STANDARD")
+  widgetMinNights               Int                        @default(1)
+  widgetAdvanceDays             Int                        @default(0)
+  widgetMaxGuests               Int                        @default(20)
+  widgetPaymentMode             String                     @default("FULL_PAYMENT")
+  widgetDepositPercent          Int                        @default(100)
+  widgetConfirmationMessage     String?
+  widgetConfirmationEmail       Boolean                    @default(true)
+  widgetLanguages               String[]                   @default(["en", "si", "ta"])
+  widgetDefaultLanguage         String                     @default("en")
+  widgetCancellationPolicy      String                     @default("Flexible cancellation")
+  widgetCancellationHours       Int                        @default(48)
+  widgetSelfCancellationEnabled Boolean                    @default(true)
+  widgetModificationEnabled     Boolean                    @default(true)
+  allowedWidgetDomains          String[]                   @default([])
+  suspendedAt                   DateTime?
 }
 
 model User {
-  id              String       @id @default(uuid())
-  email           String       @unique
-  name            String
-  passwordHash    String
-  isPlatformAdmin Boolean      @default(false)
-  memberships     Membership[]
+  id                   String                 @id @default(uuid())
+  email                String                 @unique
+  name                 String
+  passwordHash         String
+  isPlatformAdmin      Boolean                @default(false)
+  memberships          Membership[]
+  roomStatusChanges    RoomStatusHistory[]    @relation("RoomStatusChangedBy")
+  inspections          RoomInspection[]       @relation("InspectionBy")
+  lostFoundCreated     LostFoundItem[]        @relation("LostFoundCreatedBy")
+  maintenanceCreated   MaintenanceWorkOrder[] @relation("MaintenanceCreatedBy")
+  maintenanceAssigned  MaintenanceWorkOrder[] @relation("MaintenanceAssignedTo")
+  housekeepingCreated  HousekeepingTask[]     @relation("HousekeepingCreatedBy")
+  housekeepingAssigned HousekeepingTask[]     @relation("HousekeepingAssignedTo")
 }
 
 model Membership {
@@ -82,32 +108,38 @@ model Membership {
 }
 
 model RoomType {
-  id           String @id @default(uuid())
-  hotelId      String
-  name         String
-  baseRate     Int
-  maxOccupancy Int
-  hotel        Hotel  @relation(fields: [hotelId], references: [id])
-  rooms        Room[]
+  id                  String               @id @default(uuid())
+  hotelId             String
+  name                String
+  baseRate            Int
+  maxOccupancy        Int
+  hotel               Hotel                @relation(fields: [hotelId], references: [id])
+  rooms               Room[]
+  channelRoomMappings ChannelRoomMapping[]
 
   @@index([hotelId])
 }
 
 model Room {
-  id           String             @id @default(uuid())
-  hotelId      String
-  roomTypeId   String
-  number       String
-  floor        Int
-  housekeeping String             @default("CLEAN")
-  hkAssigneeId String?
-  hkNotes      String?
-  archivedAt   DateTime?
-  hotel        Hotel              @relation(fields: [hotelId], references: [id])
-  roomType     RoomType           @relation(fields: [roomTypeId], references: [id])
-  nights       RoomNight[]
-  items        ReservationItem[]
-  blocks       MaintenanceBlock[]
+  id                    String                 @id @default(uuid())
+  hotelId               String
+  roomTypeId            String
+  number                String
+  floor                 Int
+  housekeeping          String                 @default("CLEAN")
+  hkAssigneeId          String?
+  hkNotes               String?
+  archivedAt            DateTime?
+  hotel                 Hotel                  @relation(fields: [hotelId], references: [id])
+  roomType              RoomType               @relation(fields: [roomTypeId], references: [id])
+  nights                RoomNight[]
+  items                 ReservationItem[]
+  blocks                MaintenanceBlock[]
+  statusHistory         RoomStatusHistory[]
+  inspections           RoomInspection[]
+  lostFoundItems        LostFoundItem[]
+  maintenanceWorkOrders MaintenanceWorkOrder[]
+  housekeepingTasks     HousekeepingTask[]
 
   @@unique([hotelId, number])
 }
@@ -125,28 +157,31 @@ model Guest {
 }
 
 model Reservation {
-  id            String              @id @default(uuid())
-  hotelId       String
-  ref           String
-  guestId       String
-  status        ResStatus           @default(PENDING)
-  source        String              @default("DIRECT")
-  totalAmount   Int
-  depositPaid   Int                 @default(0)
-  notes         String?
-  discount      Int                 @default(0)
-  taxAmount     Int                 @default(0)
-  promoCode     String?
-  holdExpiresAt DateTime?
-  createdAt     DateTime            @default(now())
-  hotel         Hotel               @relation(fields: [hotelId], references: [id])
-  guest         Guest               @relation(fields: [guestId], references: [id])
-  items         ReservationItem[]
-  payments      Payment[]
-  refunds       Refund[]
-  deliveries    MessageDelivery[]
-  reminders     ScheduledReminder[]
-  addOns        ReservationAddOn[]
+  id             String                     @id @default(uuid())
+  hotelId        String
+  ref            String
+  guestId        String
+  status         ResStatus                  @default(PENDING)
+  source         String                     @default("DIRECT")
+  totalAmount    Int
+  depositPaid    Int                        @default(0)
+  notes          String?
+  discount       Int                        @default(0)
+  taxAmount      Int                        @default(0)
+  promoCode      String?
+  holdExpiresAt  DateTime?
+  createdAt      DateTime                   @default(now())
+  hotel          Hotel                      @relation(fields: [hotelId], references: [id])
+  guest          Guest                      @relation(fields: [guestId], references: [id])
+  items          ReservationItem[]
+  payments       Payment[]
+  refunds        Refund[]
+  deliveries     MessageDelivery[]
+  reminders      ScheduledReminder[]
+  addOns         ReservationAddOn[]
+  packageId      String?
+  package        BookingPackage?            @relation(fields: [packageId], references: [id])
+  channelImports ChannelReservationImport[]
 
   @@unique([hotelId, ref])
 }
@@ -165,20 +200,36 @@ model ReservationItem {
   nights        RoomNight[]
 }
 
-model AddOn {
-  id              String            @id @default(uuid())
+model BookingPackage {
+  id              String        @id @default(uuid())
   hotelId         String
   name            String
   description     String?
-  category        String            @default("EXTRA")
-  pricingType     String            @default("PER_BOOKING")
-  price           Int
-  stockLimit      Int?
-  active          Boolean           @default(true)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  hotel           Hotel             @relation(fields: [hotelId], references: [id])
-  reservations    ReservationAddOn[]
+  discountPercent Int           @default(0)
+  fixedDiscount   Int           @default(0)
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  hotel           Hotel         @relation(fields: [hotelId], references: [id])
+  reservations    Reservation[]
+
+  @@index([hotelId, active])
+}
+
+model AddOn {
+  id           String             @id @default(uuid())
+  hotelId      String
+  name         String
+  description  String?
+  category     String             @default("EXTRA")
+  pricingType  String             @default("PER_BOOKING")
+  price        Int
+  stockLimit   Int?
+  active       Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  hotel        Hotel              @relation(fields: [hotelId], references: [id])
+  reservations ReservationAddOn[]
 
   @@index([hotelId, active])
 }
@@ -386,4 +437,275 @@ model MaintenanceBlock {
   nights    RoomNight[]
 
   @@index([hotelId, startDate])
+}
+
+model RoomStatusHistory {
+  id          String   @id @default(uuid())
+  hotelId     String
+  roomId      String
+  changedById String?
+  fromStatus  String?
+  toStatus    String
+  note        String   @default("")
+  createdAt   DateTime @default(now())
+  hotel       Hotel    @relation(fields: [hotelId], references: [id])
+  room        Room     @relation(fields: [roomId], references: [id])
+  changedBy   User?    @relation("RoomStatusChangedBy", fields: [changedById], references: [id])
+
+  @@index([hotelId, createdAt])
+  @@index([roomId, createdAt])
+}
+
+model RoomInspection {
+  id          String    @id @default(uuid())
+  hotelId     String
+  roomId      String
+  inspectorId String?
+  status      String    @default("PENDING")
+  checklist   Json?
+  notes       String    @default("")
+  inspectedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  hotel       Hotel     @relation(fields: [hotelId], references: [id])
+  room        Room      @relation(fields: [roomId], references: [id])
+  inspector   User?     @relation("InspectionBy", fields: [inspectorId], references: [id])
+
+  @@index([hotelId, status])
+  @@index([roomId, createdAt])
+}
+
+model LostFoundItem {
+  id           String   @id @default(uuid())
+  hotelId      String
+  roomId       String?
+  createdById  String?
+  itemName     String
+  description  String   @default("")
+  location     String   @default("")
+  guestName    String   @default("")
+  guestContact String   @default("")
+  status       String   @default("OPEN")
+  notes        String   @default("")
+  foundAt      DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  hotel        Hotel    @relation(fields: [hotelId], references: [id])
+  room         Room?    @relation(fields: [roomId], references: [id])
+  createdBy    User?    @relation("LostFoundCreatedBy", fields: [createdById], references: [id])
+
+  @@index([hotelId, status])
+  @@index([hotelId, foundAt])
+}
+
+model MaintenanceWorkOrder {
+  id           String    @id @default(uuid())
+  hotelId      String
+  roomId       String
+  createdById  String?
+  assignedToId String?
+  title        String
+  description  String    @default("")
+  category     String    @default("GENERAL")
+  priority     String    @default("MEDIUM")
+  status       String    @default("OPEN")
+  dueAt        DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  hotel        Hotel     @relation(fields: [hotelId], references: [id])
+  room         Room      @relation(fields: [roomId], references: [id])
+  createdBy    User?     @relation("MaintenanceCreatedBy", fields: [createdById], references: [id])
+  assignedTo   User?     @relation("MaintenanceAssignedTo", fields: [assignedToId], references: [id])
+
+  @@index([hotelId, status, priority])
+  @@index([roomId, createdAt])
+}
+
+model HousekeepingTask {
+  id           String    @id @default(uuid())
+  hotelId      String
+  roomId       String
+  createdById  String?
+  assignedToId String?
+  taskType     String    @default("TURNOVER")
+  status       String    @default("ASSIGNED")
+  notes        String    @default("")
+  dueAt        DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  hotel        Hotel     @relation(fields: [hotelId], references: [id])
+  room         Room      @relation(fields: [roomId], references: [id])
+  createdBy    User?     @relation("HousekeepingCreatedBy", fields: [createdById], references: [id])
+  assignedTo   User?     @relation("HousekeepingAssignedTo", fields: [assignedToId], references: [id])
+
+  @@index([hotelId, status, dueAt])
+  @@index([roomId, createdAt])
+}
+
+model IntegrationApiKey {
+  id         String    @id @default(uuid())
+  hotelId    String
+  name       String
+  keyPrefix  String
+  keyHash    String    @unique
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  hotel      Hotel     @relation(fields: [hotelId], references: [id])
+
+  @@index([hotelId, revokedAt])
+}
+
+model WebhookEndpoint {
+  id             String    @id @default(uuid())
+  hotelId        String
+  name           String
+  url            String
+  secret         String
+  events         Json
+  active         Boolean   @default(true)
+  lastStatus     String    @default("NOT_TESTED")
+  lastError      String    @default("")
+  lastDeliveryAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  hotel          Hotel     @relation(fields: [hotelId], references: [id])
+
+  @@index([hotelId, active])
+}
+
+model CalendarIntegration {
+  id           String    @id @default(uuid())
+  hotelId      String
+  name         String
+  provider     String    @default("ICS")
+  direction    String    @default("EXPORT")
+  url          String    @default("")
+  token        String    @unique
+  active       Boolean   @default(true)
+  lastSyncedAt DateTime?
+  lastStatus   String    @default("NOT_SYNCED")
+  lastError    String    @default("")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  hotel        Hotel     @relation(fields: [hotelId], references: [id])
+
+  @@index([hotelId, active])
+}
+
+model IntegrationTemplate {
+  id        String   @id @default(uuid())
+  hotelId   String
+  channel   String
+  event     String
+  name      String
+  subject   String   @default("")
+  body      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  hotel     Hotel    @relation(fields: [hotelId], references: [id])
+
+  @@unique([hotelId, channel, event])
+  @@index([hotelId, channel, active])
+}
+
+model ChannelConnection {
+  id                    String                     @id @default(uuid())
+  hotelId               String
+  name                  String
+  provider              String
+  endpointUrl           String                     @default("")
+  credentials           String                     @default("")
+  active                Boolean                    @default(true)
+  syncAvailability      Boolean                    @default(true)
+  syncPrices            Boolean                    @default(true)
+  importReservations    Boolean                    @default(true)
+  stopSellProtection    Boolean                    @default(true)
+  overbookingProtection Boolean                    @default(true)
+  overbookingBuffer     Int                        @default(0)
+  lastAvailabilityAt    DateTime?
+  lastPricesAt          DateTime?
+  lastReservationsAt    DateTime?
+  lastStatus            String                     @default("NOT_SYNCED")
+  lastError             String                     @default("")
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  hotel                 Hotel                      @relation(fields: [hotelId], references: [id])
+  mappings              ChannelRoomMapping[]
+  syncLogs              ChannelSyncLog[]
+  imports               ChannelReservationImport[]
+  stopSells             ChannelStopSell[]
+
+  @@index([hotelId, active])
+}
+
+model ChannelRoomMapping {
+  id                 String            @id @default(uuid())
+  connectionId       String
+  roomTypeId         String
+  externalRoomId     String
+  externalRatePlanId String            @default("")
+  enabled            Boolean           @default(true)
+  connection         ChannelConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  roomType           RoomType          @relation(fields: [roomTypeId], references: [id])
+
+  @@unique([connectionId, externalRoomId])
+  @@unique([connectionId, roomTypeId])
+}
+
+model ChannelSyncLog {
+  id           String            @id @default(uuid())
+  connectionId String
+  syncType     String
+  status       String
+  summary      String            @default("")
+  details      Json?
+  createdAt    DateTime          @default(now())
+  connection   ChannelConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId, createdAt])
+}
+
+model ChannelReservationImport {
+  id             String            @id @default(uuid())
+  hotelId        String
+  connectionId   String
+  reservationId  String?
+  externalId     String
+  guestName      String
+  guestEmail     String            @default("")
+  guestPhone     String            @default("")
+  roomTypeName   String
+  checkIn        DateTime          @db.Date
+  checkOut       DateTime          @db.Date
+  externalAmount Int               @default(0)
+  status         String            @default("IMPORTED")
+  errorMessage   String            @default("")
+  importedAt     DateTime          @default(now())
+  createdAt      DateTime          @default(now())
+  hotel          Hotel             @relation(fields: [hotelId], references: [id])
+  connection     ChannelConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  reservation    Reservation?      @relation(fields: [reservationId], references: [id])
+
+  @@unique([connectionId, externalId])
+  @@index([hotelId, importedAt])
+}
+
+model ChannelStopSell {
+  id           String            @id @default(uuid())
+  hotelId      String
+  connectionId String
+  roomTypeId   String
+  dateFrom     DateTime          @db.Date
+  dateTo       DateTime          @db.Date
+  reason       String            @default("")
+  active       Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  hotel        Hotel             @relation(fields: [hotelId], references: [id])
+  connection   ChannelConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId, active, dateFrom])
 }

@@ -4,12 +4,13 @@ import { z } from 'zod'
 import { notify } from '../notifications/notifications.service'
 import { queueReservationMessage } from '../notifications/delivery.service'
 import { nightlyRates, promoDiscount } from './pricing'
+import { dispatchWebhookEvent } from '../integrations/integrations.service'
 
 export const db = new PrismaClient()
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const Item = z.object({ roomId: z.string().uuid(), checkIn: day, checkOut: day, adults: z.number().int().min(1), children: z.number().int().min(0).default(0) })
 const AddReservationExtra = z.object({ addOnId: z.string().uuid(), quantity: z.number().int().min(1).max(20) })
-export const Quote = z.object({ items: z.array(Item).min(1), promoCode: z.string().optional() })
+export const Quote = z.object({ items: z.array(Item).min(1), promoCode: z.string().optional(), packageId: z.string().uuid().optional() })
 export const CreateReservation = Quote.extend({
   guest: z.object({ name: z.string().min(1), email: z.string().email().optional(), phone: z.string().optional() }),
   source: z.string().default('DIRECT'), notes: z.string().optional(),
@@ -49,9 +50,13 @@ export class ReservationsService {
       const sum = rates.reduce((a, b) => a + b, 0); subtotal += sum
       lines.push({ it, nights, room: room.number, rates, sum })
     }
-    const discount = dto.promoCode ? await promoDiscount(tx, hotelId, dto.promoCode, subtotal) : 0
+    const couponDiscount = dto.promoCode ? await promoDiscount(tx, hotelId, dto.promoCode, subtotal) : 0
+    const pack = dto.packageId ? await tx.bookingPackage.findFirst({ where: { id: dto.packageId, hotelId, active: true } }) : null
+    if (dto.packageId && !pack) throw new BadRequestException('Invalid or inactive booking package')
+    const packageDiscount = pack ? Math.min(subtotal - couponDiscount, pack.fixedDiscount + Math.round((subtotal - couponDiscount) * pack.discountPercent / 100)) : 0
+    const discount = couponDiscount + packageDiscount
     const tax = Math.round((subtotal - discount) * hotel.taxBp / 10000)
-    return { lines, subtotal, discount, tax, total: subtotal - discount + tax }
+    return { lines, subtotal, discount, couponDiscount, packageDiscount, tax, total: subtotal - discount + tax, packageId: pack?.id || null }
   }
 
   quote(hotelId: string, raw: unknown) {
@@ -91,7 +96,7 @@ export class ReservationsService {
         const q = await this.price(tx, hotelId, dto)
         const extras = await this.addOnQuote(tx, hotelId, dto)
         const guest = await tx.guest.create({ data: { hotelId, ...dto.guest } })
-        const res = await tx.reservation.create({ data: { hotelId, guestId: guest.id, source: dto.source, notes: dto.notes,
+        const res = await tx.reservation.create({ data: { hotelId, guestId: guest.id, source: dto.source, notes: dto.notes, packageId: q.packageId,
           totalAmount: q.total + extras.total, discount: q.discount, taxAmount: q.tax, promoCode: dto.promoCode?.toUpperCase(),
           ref: 'M89-' + Math.random().toString(36).slice(2, 8).toUpperCase() } })
         for (const l of q.lines) {
@@ -111,6 +116,7 @@ export class ReservationsService {
           : `Your reservation ${created.ref} has been received. Total: LKR ${(created.totalAmount / 100).toLocaleString()}.`
         await queueReservationMessage(hotelId, created.id, 'BOOKING_CONFIRMATION', 'Booking confirmation · ' + created.ref, message)
       }
+      void dispatchWebhookEvent(hotelId, 'booking.created', { id: created.id, ref: created.ref, status: created.status, totalAmount: created.totalAmount, source: created.source })
       return created
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Room no longer available for those dates')
@@ -126,12 +132,23 @@ export class ReservationsService {
     if (!t.from.includes(res.status)) throw new BadRequestException(`Cannot ${action} a ${res.status} reservation`)
     const out = await db.$transaction(async tx => {
       if (t.to === 'CANCELLED') await tx.roomNight.deleteMany({ where: { item: { reservationId: id } } })
-      if (t.to === 'CHECKED_OUT') await tx.room.updateMany({ where: { items: { some: { reservationId: id } } }, data: { housekeeping: 'DIRTY' } })
+      if (t.to === 'CHECKED_OUT') {
+        const rooms = await tx.room.findMany({ where: { hotelId, items: { some: { reservationId: id } } }, select: { id: true, housekeeping: true } })
+        await tx.room.updateMany({ where: { id: { in: rooms.map(x => x.id) } }, data: { housekeeping: 'DIRTY' } })
+        for (const room of rooms) {
+          if (room.housekeeping !== 'DIRTY') {
+            await tx.roomStatusHistory.create({ data: { hotelId, roomId: room.id, changedById: userId, fromStatus: room.housekeeping, toStatus: 'DIRTY', note: `Room turned over after ${action}` } })
+          }
+          const openTask = await tx.housekeepingTask.findFirst({ where: { hotelId, roomId: room.id, status: { notIn: ['COMPLETED', 'CANCELLED'] } } })
+          if (!openTask) await tx.housekeepingTask.create({ data: { hotelId, roomId: room.id, createdById: userId, taskType: 'TURNOVER', status: 'UNASSIGNED', notes: 'Check-out completed; room needs turnover' } })
+        }
+      }
       await tx.auditLog.create({ data: { hotelId, userId, action: action.toUpperCase(), entity: 'Reservation', entityId: id } })
       return tx.reservation.update({ where: { id }, data: { status: t.to } })
     })
     if (t.to === 'CANCELLED') await notify(db, hotelId, 'BOOKING_CANCELLED', 'Reservation ' + res.ref + ' cancelled')
     if (t.to === 'CANCELLED') await queueReservationMessage(hotelId, res.id, 'BOOKING_CANCELLATION', 'Booking cancelled · ' + res.ref, `Your reservation ${res.ref} has been cancelled.`)
+    void dispatchWebhookEvent(hotelId, t.to === 'CANCELLED' ? 'booking.cancelled' : t.to === 'CHECKED_IN' ? 'booking.checked_in' : t.to === 'CHECKED_OUT' ? 'booking.checked_out' : 'booking.updated', { id: out.id, ref: out.ref, status: out.status })
     return out
   }
 

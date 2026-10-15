@@ -1,0 +1,410 @@
+/* Widget page repair layer.
+   This file deliberately comes last so the widget cannot inherit the
+   dashboard's compact form and button rules. */
+
+.widget-page,
+.widget-page * {
+  box-sizing: border-box;
+}
+
+.widget-page {
+  width: 100%;
+  max-width: 1500px !important;
+  min-width: 0;
+}
+
+.widget-page .booking-kicker,
+.widget-page .widget-field-label {
+  font-size: 11px !important;
+}
+
+.widget-page .widget-section-heading h2 {
+  font-size: 19px !important;
+}
+
+.widget-page .widget-section-heading p,
+.widget-page .widget-help {
+  font-size: 13px !important;
+}
+
+.widget-page .widget-layout-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: start !important;
+  gap: 20px !important;
+  width: 100%;
+}
+
+.widget-page .widget-layout-grid > * {
+  min-width: 0 !important;
+}
+
+.widget-page .widget-card {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden;
+}
+
+.widget-page .widget-control-bar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+}
+
+.widget-page .widget-control-bar > div:first-child {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+}
+
+.widget-page .widget-control-bar > div:first-child > div {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+}
+
+.widget-page .widget-control-bar strong,
+.widget-page .widget-control-bar small {
+  display: block !important;
+  white-space: normal !important;
+}
+
+.widget-page .widget-toggle {
+  appearance: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  gap: 8px !important;
+  min-height: 38px !important;
+  border: 1px solid #d8e3ef !important;
+  border-radius: 9px !important;
+  background: #f5f8fc !important;
+  color: #294360 !important;
+  box-shadow: none !important;
+  padding: 8px 13px !important;
+}
+
+.widget-page .widget-toggle.on {
+  border-color: #2f63dc !important;
+  background: #2f63dc !important;
+  color: #fff !important;
+}
+
+.widget-page .widget-toggle b {
+  color: inherit !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.widget-page .widget-toggle span {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: currentColor !important;
+}
+
+.widget-page .widget-preview-frame {
+  width: 100% !important;
+  height: 560px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  background: #f8fafc !important;
+}
+
+.widget-page .widget-preview-frame iframe {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  border: 0 !important;
+}
+
+.widget-page .widget-heading-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  min-width: 0 !important;
+}
+
+.widget-page .widget-outline-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-height: 38px !important;
+  color: #2457c9 !important;
+  background: #fff !important;
+  border: 1px solid #d5e0ed !important;
+  border-radius: 9px !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+}
+
+.widget-page .widget-test-btn {
+  color: #fff !important;
+  background: #142641 !important;
+  border-color: #142641 !important;
+}
+
+.widget-page .widget-form-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: start !important;
+  width: 100% !important;
+  gap: 16px !important;
+}
+
+.widget-page .widget-form-grid > label,
+.widget-page .widget-message-field,
+.widget-page .deposit-field {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  gap: 7px !important;
+}
+
+.widget-page .widget-form-grid > label > span,
+.widget-page .widget-message-field > span,
+.widget-page .deposit-field > span {
+  display: block !important;
+  min-height: 15px !important;
+  font-size: 12px !important;
+  line-height: 1.3 !important;
+  white-space: normal !important;
+}
+
+.widget-page .widget-form-grid input:not([type="checkbox"]):not([type="color"]),
+.widget-page .widget-form-grid select,
+.widget-page .deposit-field input,
+.widget-page .widget-message-field textarea,
+.widget-page .widget-domain-textarea {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  font-size: 13px !important;
+}
+
+.widget-page .color-setting {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  min-height: 38px !important;
+}
+
+.widget-page .color-setting input[type="color"] {
+  flex: 0 0 44px !important;
+  width: 44px !important;
+  height: 38px !important;
+  padding: 4px !important;
+}
+
+.widget-page .color-setting code {
+  color: #607894 !important;
+  font-size: 11px !important;
+}
+
+.widget-page .widget-language-checks {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+.widget-page .widget-language-checks label {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  min-height: 38px !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+}
+
+.widget-page .widget-checkbox-row {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: start !important;
+  gap: 16px !important;
+  margin-top: 20px !important;
+}
+
+.widget-page .widget-checkbox {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 9px !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+
+.widget-page .widget-checkbox > span {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+}
+
+.widget-page .widget-checkbox strong,
+.widget-page .widget-checkbox small {
+  display: block !important;
+  white-space: normal !important;
+}
+
+.widget-page .widget-checkbox strong {
+  font-size: 13px !important;
+}
+
+.widget-page .widget-checkbox small {
+  font-size: 11px !important;
+}
+
+.widget-page .payment-choice-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+}
+
+.widget-page .payment-choice {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  min-width: 0 !important;
+  min-height: 108px !important;
+  color: #2f4968 !important;
+  background: #f8fafc !important;
+  border: 1px solid #e1e8f0 !important;
+  white-space: normal !important;
+  text-align: left !important;
+}
+
+.widget-page .payment-choice strong,
+.widget-page .payment-choice small {
+  display: block !important;
+  color: inherit !important;
+  white-space: normal !important;
+  line-height: 1.45 !important;
+}
+
+.widget-page .payment-choice strong {
+  color: #172f4e !important;
+  font-size: 14px !important;
+}
+
+.widget-page .payment-choice small {
+  margin-top: 6px !important;
+  font-size: 12px !important;
+}
+
+.widget-page .widget-message-field {
+  margin-top: 16px !important;
+}
+
+.widget-page .widget-message-field textarea {
+  min-height: 82px !important;
+  resize: vertical !important;
+}
+
+.widget-page .widget-status-card .widget-section-heading {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+.widget-page .widget-check-list {
+  display: grid !important;
+  gap: 9px !important;
+  padding: 4px 0 16px !important;
+}
+
+.widget-page .widget-check-list > div {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 20px !important;
+}
+
+.widget-page .widget-domain-textarea {
+  min-height: 112px !important;
+  resize: vertical !important;
+}
+
+.widget-page .integration-code {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+.widget-page .integration-code code {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.widget-page .widget-save-bar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  min-width: 0 !important;
+  max-width: 1500px !important;
+}
+
+.widget-page .widget-save-bar span {
+  min-width: 0 !important;
+  color: #5e7592 !important;
+  font-size: 13px !important;
+}
+
+.widget-page .widget-save-bar button {
+  flex: 0 0 auto !important;
+  color: #fff !important;
+  background: #3563dc !important;
+  border-color: #3563dc !important;
+}
+
+@media (max-width: 1050px) {
+  .widget-page .widget-preview-frame {
+    height: 520px !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .widget-page .widget-form-grid,
+  .widget-page .widget-form-grid.three,
+  .widget-page .payment-choice-grid,
+  .widget-page .widget-checkbox-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .widget-page .widget-language-checks {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .widget-page .widget-control-bar,
+  .widget-page .widget-save-bar {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+  }
+
+  .widget-page .widget-toggle,
+  .widget-page .widget-save-bar button {
+    width: 100% !important;
+  }
+}

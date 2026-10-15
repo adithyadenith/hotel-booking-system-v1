@@ -28,8 +28,18 @@ export class HousekeepingController {
     if (r.role === 'HOUSEKEEPING' && (room.hkAssigneeId !== r.user.id || dto.assigneeId !== undefined)) throw new ForbiddenException()
     if (dto.assigneeId && !(await db.membership.findFirst({ where: { hotelId: r.hotelId, userId: dto.assigneeId, role: 'HOUSEKEEPING' } })))
       throw new BadRequestException('Assignee is not housekeeping staff of this hotel')
-    const out = await db.room.update({ where: { id }, data: { housekeeping: dto.status, hkAssigneeId: dto.assigneeId, hkNotes: dto.notes } })
-    if (dto.status) await notify(db, r.hotelId, 'HOUSEKEEPING', `Room ${room.number}: ${dto.status.replace('_', ' ')}`)
+    const out = await db.$transaction(async tx => {
+      const updated = await tx.room.update({ where: { id }, data: { housekeeping: dto.status, hkAssigneeId: dto.assigneeId, hkNotes: dto.notes } })
+      if (dto.status && dto.status !== room.housekeeping) {
+        await tx.roomStatusHistory.create({ data: { hotelId: r.hotelId, roomId: room.id, changedById: r.user.id, fromStatus: room.housekeeping, toStatus: dto.status, note: dto.notes || '' } })
+        if (dto.status === 'DIRTY') {
+          const openTask = await tx.housekeepingTask.findFirst({ where: { hotelId: r.hotelId, roomId: room.id, status: { notIn: ['COMPLETED', 'CANCELLED'] } } })
+          if (!openTask) await tx.housekeepingTask.create({ data: { hotelId: r.hotelId, roomId: room.id, createdById: r.user.id, assignedToId: dto.assigneeId ?? room.hkAssigneeId, taskType: 'TURNOVER', status: (dto.assigneeId ?? room.hkAssigneeId) ? 'ASSIGNED' : 'UNASSIGNED', notes: 'Room marked dirty and needs turnover' } })
+        }
+      }
+      return updated
+    })
+    if (dto.status && dto.status !== room.housekeeping) await notify(db, r.hotelId, 'HOUSEKEEPING', `Room ${room.number}: ${dto.status.replace('_', ' ')}`)
     return out
   }
 }

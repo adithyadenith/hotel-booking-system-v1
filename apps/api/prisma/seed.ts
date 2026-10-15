@@ -29,6 +29,13 @@ async function main() {
   for (const [name, description, category, pricingType, price, stockLimit] of extras) {
     if (!(await db.addOn.findFirst({ where: { hotelId: hotel.id, name } }))) await db.addOn.create({ data: { hotelId: hotel.id, name, description, category, pricingType, price, stockLimit } })
   }
+  const packages = [
+    ['Bed & Breakfast', 'Room with daily breakfast included', 10, 0],
+    ['Long Stay Offer', 'Save on a longer direct stay', 15, 0],
+  ] as const
+  for (const [name, description, discountPercent, fixedDiscount] of packages) {
+    if (!(await db.bookingPackage.findFirst({ where: { hotelId: hotel.id, name } }))) await db.bookingPackage.create({ data: { hotelId: hotel.id, name, description, discountPercent, fixedDiscount } })
+  }
   const users: [string, string, 'ADMIN' | 'MANAGER' | 'RECEPTIONIST' | 'HOUSEKEEPING'][] = [
     ['admin@demo.lk', 'Nimal Perera', 'ADMIN'], ['manager@demo.lk', 'Kumari Silva', 'MANAGER'],
     ['reception@demo.lk', 'Tharindu Fernando', 'RECEPTIONIST'], ['clean@demo.lk', 'Sunil Jayasinghe', 'HOUSEKEEPING']]

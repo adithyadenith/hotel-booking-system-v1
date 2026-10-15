@@ -43,7 +43,7 @@ function Metric({ label, value, hint, tone, icon }: any) {
 }
 
 function QuickActions() {
-  const actions = [["/calendar", "New booking", "Create a reservation", "+", "blue"], ["/reservations", "Review bookings", "Confirm or update stays", "B", "purple"], ["/housekeeping", "Housekeeping", "Update room readiness", "H", "green"], ["/setup", "Room setup", "Rates and maintenance", "S", "orange"], ["/reservations", "Record payment", "Collect an outstanding balance", "$", "yellow"], ["/widget", "Booking website", "Open your direct channel", "W", "slate"]]
+  const actions = [["/calendar", "New booking", "Create a reservation", "+", "blue"], ["/reservations", "Review bookings", "Confirm or update stays", "B", "purple"], ["/operations?tab=housekeeping", "Housekeeping", "Update room readiness", "H", "green"], ["/operations?tab=maintenance", "Maintenance", "Track room repairs", "M", "orange"], ["/reservations", "Record payment", "Collect an outstanding balance", "$", "yellow"], ["/operations", "Hotel operations", "Run today's workflow", "O", "slate"]]
   return <section className="panel quick-actions-panel"><div className="panel-heading"><div><h2>Quick actions</h2><p>Common tasks for today</p></div></div><div className="quick-actions-grid">{actions.map(([href, title, description, icon, tone]) => <Link key={title} href={href} className="quick-action"><span className={`quick-action-icon ${tone}`}>{icon}</span><span><strong>{title}</strong><small>{description}</small></span><b>&gt;</b></Link>)}</div></section>
 }
 
@@ -121,9 +121,9 @@ export default function Dashboard() {
 
     <AlertsPanel alerts={[
       { title: "Unpaid bookings", detail: d.unpaid.length ? `${d.unpaid.length} active booking${d.unpaid.length === 1 ? "" : "s"} with a balance due` : "All active bookings are paid", count: d.unpaid.length, icon: "$", tone: d.unpaid.length ? "warning" : "success", href: "/reservations?filter=unpaid" },
-      { title: "Dirty rooms", detail: d.dirty ? `${d.dirty} room${d.dirty === 1 ? "" : "s"} waiting for housekeeping` : "All rooms are ready", count: d.dirty, icon: "H", tone: d.dirty ? "danger" : "success", href: "/housekeeping" },
-      { title: "Arrivals today", detail: d.arrivals.length ? `${d.arrivals.length} guest${d.arrivals.length === 1 ? "" : "s"} expected to check in` : "No arrivals scheduled today", count: d.arrivals.length, icon: "A", tone: d.arrivals.length ? "info" : "success", href: `/calendar?date=${today}` },
-      { title: "Maintenance blocks", detail: d.maintenanceBlocks.length ? `${d.maintenanceBlocks.length} room block${d.maintenanceBlocks.length === 1 ? "" : "s"} affects availability` : "No active maintenance blocks", count: d.maintenanceBlocks.length, icon: "M", tone: d.maintenanceBlocks.length ? "purple" : "success", href: "/setup?tab=maint" }
+      { title: "Dirty rooms", detail: d.dirty ? `${d.dirty} room${d.dirty === 1 ? "" : "s"} waiting for housekeeping` : "All rooms are ready", count: d.dirty, icon: "H", tone: d.dirty ? "danger" : "success", href: "/operations?tab=housekeeping" },
+      { title: "Arrivals today", detail: d.arrivals.length ? `${d.arrivals.length} guest${d.arrivals.length === 1 ? "" : "s"} expected to check in` : "No arrivals scheduled today", count: d.arrivals.length, icon: "A", tone: d.arrivals.length ? "info" : "success", href: "/operations?tab=arrivals" },
+      { title: "Maintenance blocks", detail: d.maintenanceBlocks.length ? `${d.maintenanceBlocks.length} room block${d.maintenanceBlocks.length === 1 ? "" : "s"} affects availability` : "No active maintenance blocks", count: d.maintenanceBlocks.length, icon: "M", tone: d.maintenanceBlocks.length ? "purple" : "success", href: "/operations?tab=maintenance" }
     ]} />
 
     <section className="dashboard-columns">
