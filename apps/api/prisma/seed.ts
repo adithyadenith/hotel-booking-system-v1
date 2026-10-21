@@ -1,7 +1,16 @@
 import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
-const db = new PrismaClient()
+
+function secureConnectionString(url: string) {
+  if (!/supabase\.(co|com)/i.test(url) || /[?&]sslmode=/.test(url)) return url
+  return `${url}?uselibpqcompat=true&sslmode=require`
+}
+
+const db = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: secureConnectionString(process.env.DATABASE_URL!) }),
+})
 async function main() {
   const hotel = await db.hotel.upsert({ where: { slug: 'ceylon-palms' }, update: {}, create: { slug: 'ceylon-palms', name: 'Ceylon Palms Resort (DEMO)', taxBp: 1000 } })
   const specs = [['Standard', 1200000, 2, 10], ['Deluxe', 1800000, 3, 8], ['Family', 2400000, 5, 4], ['Suite', 3600000, 3, 3]] as const

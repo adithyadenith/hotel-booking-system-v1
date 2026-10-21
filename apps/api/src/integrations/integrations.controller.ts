@@ -26,9 +26,10 @@ async function ensureTemplates(hotelId: string) {
     ['EMAIL', 'CHECK_IN_REMINDER', 'Arrival reminder', 'Your stay at {hotel} starts tomorrow', 'Hello {guest}, we look forward to welcoming you tomorrow. Booking: {ref}.'],
     ['SMS', 'CHECK_IN_REMINDER', 'Arrival reminder SMS', '', 'Reminder: your stay at {hotel} starts tomorrow. Ref {ref}.'],
   ] as const
-  for (const [channel, event, name, subject, body] of defaults) {
-    await db.integrationTemplate.upsert({ where: { hotelId_channel_event: { hotelId, channel, event } }, update: {}, create: { hotelId, channel, event, name, subject, body } })
-  }
+  await db.integrationTemplate.createMany({
+    data: defaults.map(([channel, event, name, subject, body]) => ({ hotelId, channel, event, name, subject, body })),
+    skipDuplicates: true,
+  })
 }
 
 @Controller('integrations')

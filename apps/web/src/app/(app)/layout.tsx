@@ -5,6 +5,16 @@ import { usePathname } from "next/navigation"
 import { api, API, session } from "@/lib/api"
 
 const NAV = [["/dashboard", "Dashboard", "D"], ["/operations", "Hotel operations", "O"], ["/integrations", "Integrations", "↗"], ["/channel-manager", "Channel manager", "↺"], ["/calendar", "Calendar", "C"], ["/reservations", "Bookings", "B"], ["/add-ons", "Add-ons", "+"], ["/packages", "Packages", "%"], ["/guests", "Guests", "G"], ["/housekeeping", "Housekeeping", "H"], ["/reports", "Reports", "R"], ["/widget", "Booking Widget", "W"], ["/setup", "Setup", "S"], ["/settings", "Settings", "O"], ["/audit", "Audit log", "A"], ["/notifications", "Notifications", "N"]]
+const ROLE_ACCESS: Record<string, string[]> = {
+  "/integrations": ["ADMIN", "MANAGER"],
+  "/channel-manager": ["ADMIN", "MANAGER"],
+  "/reports": ["ADMIN", "MANAGER"],
+  "/widget": ["ADMIN", "MANAGER"],
+  "/setup": ["ADMIN", "MANAGER"],
+  "/settings": ["ADMIN"],
+  "/audit": ["ADMIN", "MANAGER"],
+}
+const canAccess = (path: string, role?: string) => !ROLE_ACCESS[path] || ROLE_ACCESS[path].includes(role || "")
 const money = (cents: number) => `LKR ${(cents / 100).toLocaleString()}`
 
 function SearchDropdown({ busy, results, query, close }: any) {
@@ -44,7 +54,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const close = (e: KeyboardEvent) => { if (e.key === "Escape") { setSearchOpen(false); setMobileMenuOpen(false) } }
     window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close)
   }, [])
+  useEffect(() => {
+    if (s && path !== "/dashboard" && !canAccess(path, s.role)) location.replace("/dashboard")
+  }, [path, s])
   if (!s) return null
+  if (path !== "/dashboard" && !canAccess(path, s.role)) return <main className="main"><div className="err">You do not have permission to view this page. Redirecting to the dashboard…</div></main>
   const initials = (s.name || s.hotelName || "H").split(" ").map((x: string) => x[0]).slice(0, 2).join("").toUpperCase()
   const closeSearch = () => setSearchOpen(false)
   const closeMobileMenu = () => setMobileMenuOpen(false)
@@ -53,7 +67,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <nav className={`side ${mobileMenuOpen ? "mobile-open" : ""}`}>
       <div className="brand"><span className="brand-mark">HP</span><span className="brand-copy"><strong>{s.hotelName || "Hotel platform"}</strong><small>HOTEL MANAGEMENT</small></span></div>
       <div className="side-label">MANAGEMENT</div>
-      <div className="nav-list">{NAV.filter(([h]) => (s.role !== "HOUSEKEEPING" || h === "/housekeeping") && (!["/add-ons", "/packages"].includes(h) || ["ADMIN", "MANAGER"].includes(s.role))).map(([h, l, icon]) => <Link key={h} href={h} onClick={closeMobileMenu} className={path === h ? "on" : ""} title={collapsed ? l : undefined}><span className="nav-icon">{icon}</span><span className="nav-label">{l}</span>{l === "Notifications" && unread > 0 && <span className="nav-badge">{unread > 9 ? "9+" : unread}</span>}</Link>)}</div>
+      <div className="nav-list">{NAV.filter(([h]) => canAccess(h, s.role) && (s.role !== "HOUSEKEEPING" || h === "/housekeeping") && (!["/add-ons", "/packages"].includes(h) || ["ADMIN", "MANAGER"].includes(s.role))).map(([h, l, icon]) => <Link key={h} href={h} onClick={closeMobileMenu} className={path === h ? "on" : ""} title={collapsed ? l : undefined}><span className="nav-icon">{icon}</span><span className="nav-label">{l}</span>{l === "Notifications" && unread > 0 && <span className="nav-badge">{unread > 9 ? "9+" : unread}</span>}</Link>)}</div>
       <div className="side-spacer" />
       <Link href="/widget" onClick={closeMobileMenu} className="website-link" title={collapsed ? "Booking website" : undefined}><span className="nav-icon">&gt;</span><span className="nav-label">Booking website</span></Link>
       <button className="collapse-btn" onClick={() => { setCollapsed(x => !x); closeMobileMenu() }}><span>{collapsed ? ">" : "<"}</span><span className="nav-label">Collapse menu</span></button>

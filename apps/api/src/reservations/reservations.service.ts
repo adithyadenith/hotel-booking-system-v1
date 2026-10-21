@@ -1,12 +1,23 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { Prisma, PrismaClient, ResStatus } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { z } from 'zod'
 import { notify } from '../notifications/notifications.service'
 import { queueReservationMessage } from '../notifications/delivery.service'
 import { nightlyRates, promoDiscount } from './pricing'
 import { dispatchWebhookEvent } from '../integrations/integrations.service'
 
-export const db = new PrismaClient()
+// Use the Node PostgreSQL driver so Windows development does not depend on
+// Prisma's native Schannel TLS engine. The same adapter works in production.
+function secureConnectionString(url: string) {
+  if (!/supabase\.(co|com)/i.test(url) || /[?&]sslmode=/.test(url)) return url
+  // pg 8.16+ interprets sslmode=require as verify-full unless libpq
+  // compatibility is explicitly enabled. Supabase's pooler uses encrypted
+  // TLS, but its certificate chain is not trusted by every Windows runtime.
+  return `${url}?uselibpqcompat=true&sslmode=require`
+}
+const pgAdapter = new PrismaPg({ connectionString: secureConnectionString(process.env.DATABASE_URL!) })
+export const db = new PrismaClient({ adapter: pgAdapter })
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const Item = z.object({ roomId: z.string().uuid(), checkIn: day, checkOut: day, adults: z.number().int().min(1), children: z.number().int().min(0).default(0) })
 const AddReservationExtra = z.object({ addOnId: z.string().uuid(), quantity: z.number().int().min(1).max(20) })
@@ -131,7 +142,12 @@ export class ReservationsService {
     if (!res) throw new NotFoundException()
     if (!t.from.includes(res.status)) throw new BadRequestException(`Cannot ${action} a ${res.status} reservation`)
     const out = await db.$transaction(async tx => {
-      if (t.to === 'CANCELLED') await tx.roomNight.deleteMany({ where: { item: { reservationId: id } } })
+      if (t.to === 'CANCELLED') {
+        // Keep the reservation and room assignment for history, but remove it
+        // from future availability and the active-date exclusion constraint.
+        await tx.roomNight.deleteMany({ where: { item: { reservationId: id } } })
+        await tx.reservationItem.updateMany({ where: { reservationId: id }, data: { active: false } })
+      }
       if (t.to === 'CHECKED_OUT') {
         const rooms = await tx.room.findMany({ where: { hotelId, items: { some: { reservationId: id } } }, select: { id: true, housekeeping: true } })
         await tx.room.updateMany({ where: { id: { in: rooms.map(x => x.id) } }, data: { housekeeping: 'DIRTY' } })
@@ -180,6 +196,6 @@ export class ReservationsService {
   }
   calendar(hotelId: string, from: string, to: string) {
     return db.room.findMany({ where: { hotelId, archivedAt: null }, orderBy: { number: 'asc' }, include: { roomType: true, blocks: { where: { startDate: { lt: new Date(to) }, endDate: { gt: new Date(from) } } },
-      items: { where: { checkIn: { lt: new Date(to) }, checkOut: { gt: new Date(from) } }, include: { reservation: { include: { guest: true } } } } } })
+      items: { where: { active: true, checkIn: { lt: new Date(to) }, checkOut: { gt: new Date(from) } }, include: { reservation: { include: { guest: true } } } } } })
   }
 }

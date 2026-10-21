@@ -89,6 +89,11 @@ export class AdminController {
     if (!(await db.room.findFirst({ where: { id: d.roomId, hotelId: r.hotelId } }))) throw new BadRequestException('Unknown room')
     try {
       return await db.$transaction(async tx => {
+        const overlappingReservation = await tx.reservationItem.findFirst({
+          where: { roomId: d.roomId, active: true, checkIn: { lt: new Date(d.endDate) }, checkOut: { gt: new Date(d.startDate) }, reservation: { hotelId: r.hotelId, status: { notIn: ['CANCELLED', 'NO_SHOW'] } } },
+          select: { id: true },
+        })
+        if (overlappingReservation) throw new ConflictException('Those dates overlap an existing reservation')
         const blk = await tx.maintenanceBlock.create({ data: { hotelId: r.hotelId, roomId: d.roomId, startDate: new Date(d.startDate), endDate: new Date(d.endDate), reason: d.reason } })
         await tx.roomNight.createMany({ data: nightsBetween(d.startDate, d.endDate).map(night => ({ roomId: d.roomId, night, blockId: blk.id })) })
         await tx.auditLog.create({ data: { hotelId: r.hotelId, userId: r.user.id, action: 'MAINTENANCE_BLOCK', entity: 'MaintenanceBlock', entityId: blk.id } })

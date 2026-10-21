@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -190,6 +191,7 @@ model ReservationItem {
   id            String      @id @default(uuid())
   reservationId String
   roomId        String
+  active        Boolean     @default(true)
   checkIn       DateTime    @db.Date
   checkOut      DateTime    @db.Date
   adults        Int         @default(1)

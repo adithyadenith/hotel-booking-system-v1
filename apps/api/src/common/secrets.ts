@@ -1,6 +1,10 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
 
-const key = () => createHash('sha256').update(process.env.CREDENTIALS_ENCRYPTION_KEY || 'development-only-change-me').digest()
+const key = () => {
+  const value = process.env.CREDENTIALS_ENCRYPTION_KEY
+  if (process.env.NODE_ENV === 'production' && !value) throw new Error('CREDENTIALS_ENCRYPTION_KEY is required in production')
+  return createHash('sha256').update(value || 'development-only-change-me').digest()
+}
 
 /** Encrypts provider credentials at rest. The encryption key must be supplied outside the database. */
 export function seal(value: string) {

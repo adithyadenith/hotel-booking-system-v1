@@ -8,7 +8,7 @@ import { db } from '../reservations/reservations.service'
 @Controller('auth')
 export class AuthController {
   constructor(private jwt: JwtService) {}
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // brute-force protection
+  @Throttle({ default: { limit: Number(process.env.AUTH_LOGIN_THROTTLE_LIMIT || 5), ttl: 60000 } }) // brute-force protection
   @Post('login')
   async login(@Body() body: unknown) {
     const { email, password } = z.object({ email: z.string().email(), password: z.string().min(1) }).parse(body)

@@ -14,7 +14,11 @@ export interface PaymentProvider {
   createCheckout(p: { amount: number; currency: string }): { providerRef: string; checkoutUrl: string }
   verifyWebhook(raw: Buffer, signature: string): boolean
 }
-const SECRET = () => process.env.SANDBOX_WEBHOOK_SECRET || 'dev-sandbox-secret'
+const SECRET = () => {
+  const value = process.env.SANDBOX_WEBHOOK_SECRET
+  if (process.env.NODE_ENV === 'production' && !value) throw new UnauthorizedException('Sandbox payments are not configured')
+  return value || 'dev-sandbox-secret'
+}
 const sign = (raw: Buffer | string) => createHmac('sha256', SECRET()).update(raw).digest('hex')
 /** SANDBOX ONLY: fake gateway for development. Never use in production. */
 export const sandbox: PaymentProvider = {
@@ -59,7 +63,11 @@ export class PaymentsService {
       await queueReservationMessage(hotelId, id, 'PAYMENT_CONFIRMATION', 'Payment received', `Payment received for reservation ${res.ref}: LKR ${(dto.amount / 100).toLocaleString()}.`)
       return paid
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') return db.payment.findUniqueOrThrow({ where: { idempotencyKey: key } })
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        const existing = await db.payment.findUnique({ where: { idempotencyKey: key }, include: { reservation: { select: { hotelId: true } } } })
+        if (!existing || existing.reservation.hotelId !== hotelId) throw new BadRequestException('The idempotency key is already in use')
+        return existing
+      }
       throw e
     }
   }
@@ -73,12 +81,14 @@ export class PaymentsService {
       db.reservation.findFirstOrThrow({ where: { id, hotelId }, include: { guest: true, hotel: true } })
     ])
     if (config) {
+      if (process.env.NODE_ENV === 'production' && config.environment !== 'LIVE') throw new BadRequestException('Only a LIVE PayHere gateway can be used in production')
       const orderId = `M89-${full.ref}-${randomUUID().slice(0, 8)}`
       const p = await db.payment.create({ data: { reservationId: id, provider: 'PAYHERE', providerRef: orderId, idempotencyKey: randomUUID(), amount, status: 'PENDING' } })
       const base = process.env.PUBLIC_API_URL || 'http://localhost:4000'
       const checkout = payHereCheckout(config, { orderId, amount, currency: full.hotel.currency, name: full.guest.name, email: full.guest.email || 'guest@example.com', phone: full.guest.phone || '', notifyUrl: `${base}/webhooks/payhere`, returnUrl: `${process.env.PUBLIC_WEB_URL || 'http://localhost:3000'}/book/${full.hotel.widgetKey}?payment=return&ref=${full.ref}`, cancelUrl: `${process.env.PUBLIC_WEB_URL || 'http://localhost:3000'}/book/${full.hotel.widgetKey}?payment=cancelled&ref=${full.ref}` })
       return { paymentId: p.id, provider: 'PAYHERE', checkoutUrl: `${base}/payhere/pay/${p.id}`, checkout }
     }
+    if (process.env.NODE_ENV === 'production') throw new BadRequestException('A live PayHere gateway must be configured before accepting online payments')
     const c = sandbox.createCheckout({ amount, currency: 'LKR' })
     const p = await db.payment.create({ data: { reservationId: id, provider: sandbox.name, providerRef: c.providerRef, idempotencyKey: randomUUID(), amount, status: 'PENDING' } })
     return { paymentId: p.id, provider: 'SANDBOX', checkoutUrl: c.checkoutUrl }
@@ -86,6 +96,7 @@ export class PaymentsService {
 
   async configureGateway(hotelId: string, userId: string, raw: unknown) {
     const d = z.object({ provider: z.literal('PAYHERE'), environment: z.enum(['SANDBOX', 'LIVE']), merchantId: z.string().min(1), merchantSecret: z.string().min(1), apiToken: z.string().optional(), enabled: z.boolean() }).parse(raw)
+    if (process.env.NODE_ENV === 'production' && d.environment !== 'LIVE') throw new BadRequestException('Only the LIVE PayHere environment is allowed in production')
     const config = await db.paymentGatewayConfig.upsert({ where: { hotelId_provider: { hotelId, provider: d.provider } }, create: { hotelId, provider: d.provider, environment: d.environment, merchantId: d.merchantId, merchantSecretCiphertext: seal(d.merchantSecret), apiTokenCiphertext: d.apiToken ? seal(d.apiToken) : null, enabled: d.enabled }, update: { environment: d.environment, merchantId: d.merchantId, merchantSecretCiphertext: seal(d.merchantSecret), ...(d.apiToken ? { apiTokenCiphertext: seal(d.apiToken) } : {}), enabled: d.enabled } })
     await db.auditLog.create({ data: { hotelId, userId, action: 'GATEWAY_CONFIGURED', entity: 'PaymentGatewayConfig', entityId: config.id } })
     return { provider: config.provider, environment: config.environment, merchantId: config.merchantId, enabled: config.enabled }
@@ -131,6 +142,7 @@ export class PaymentsService {
     if (d.amount > payment.amount - already) throw new BadRequestException('Refund exceeds the remaining payment amount')
     const key = d.idempotencyKey || randomUUID()
     const config = await db.paymentGatewayConfig.findUnique({ where: { hotelId_provider: { hotelId, provider: 'PAYHERE' } } })
+    if (config && process.env.NODE_ENV === 'production' && config.environment !== 'LIVE') throw new BadRequestException('Only a LIVE PayHere gateway can be used in production')
     const token = config ? unseal(config.apiTokenCiphertext) : undefined
     if (config && !token) throw new BadRequestException('PayHere refund API token is not configured')
     try {
@@ -151,11 +163,19 @@ export class PaymentsService {
       }
       await db.auditLog.create({ data: { hotelId, userId, action: 'REFUND', entity: 'Payment', entityId: paymentId } })
       return db.refund.findUniqueOrThrow({ where: { id: refund.id } })
-    } catch (e) { if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') return db.refund.findUniqueOrThrow({ where: { idempotencyKey: key } }); throw e }
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        const existing = await db.refund.findUnique({ where: { idempotencyKey: key }, select: { hotelId: true } })
+        if (!existing || existing.hotelId !== hotelId) throw new BadRequestException('The idempotency key is already in use')
+        return db.refund.findUniqueOrThrow({ where: { idempotencyKey: key } })
+      }
+      throw e
+    }
   }
 
   /** The only path that marks a gateway payment successful: a verified, de-duplicated, amount-matched webhook. */
   async applyWebhook(raw: Buffer, signature: string) {
+    if (process.env.NODE_ENV === 'production') throw new UnauthorizedException('Sandbox webhooks are disabled in production')
     if (!sandbox.verifyWebhook(raw, signature)) throw new UnauthorizedException('Bad signature')
     const ev = z.object({ id: z.string(), type: z.enum(['payment.succeeded', 'payment.failed']), ref: z.string(), amount: z.number().int() }).parse(JSON.parse(raw.toString()))
     try {
@@ -180,6 +200,7 @@ export class PaymentsService {
   }
 
   async sandboxPage(ref: string) {
+    if (process.env.NODE_ENV === 'production') throw new UnauthorizedException()
     const p = await db.payment.findFirst({ where: { providerRef: ref } })
     if (!p || p.status !== 'PENDING') return '<p>Payment not found or already processed.</p>'
     return `<body style="font-family:sans-serif;max-width:360px;margin:15vh auto"><h2>SANDBOX checkout</h2><p>Test payment of LKR ${(p.amount / 100).toLocaleString()}. No real money moves.</p>

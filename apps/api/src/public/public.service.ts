@@ -34,6 +34,7 @@ export class PublicService implements OnModuleInit {
     return h
   }
   private checkOrigin(h: { allowedWidgetDomains: string[] }, origin?: string) {
+    if (process.env.NODE_ENV === 'production' && origin && !h.allowedWidgetDomains.includes(origin)) throw new NotFoundException('Unknown booking widget')
     if (origin && h.allowedWidgetDomains.length && !h.allowedWidgetDomains.includes(origin)) throw new NotFoundException('Unknown booking widget')
   }
   private checkDates(h: { timezone: string, widgetMinNights: number, widgetAdvanceDays: number }, from: string, to: string) {
