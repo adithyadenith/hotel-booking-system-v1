@@ -59,4 +59,27 @@ export class ReportsController {
       ${line('Total', res.totalAmount, true)}${line('Paid', res.depositPaid)}${line('Balance due', res.totalAmount - res.depositPaid, true)}</table>
       <p><button onclick="print()">Print / Save as PDF</button></p></body>`
   }
+
+  @Get('reservations/:id/confirmation') @Roles('ADMIN', 'MANAGER', 'RECEPTIONIST') @Header('Content-Type', 'text/html')
+  async confirmation(@Req() r: any, @Param('id') id: string) {
+    const [res, hotel] = await Promise.all([
+      db.reservation.findFirst({ where: { id, hotelId: r.hotelId }, include: { guest: true, items: { include: { room: { include: { roomType: true } } } }, addOns: true } }),
+      db.hotel.findUniqueOrThrow({ where: { id: r.hotelId } }),
+    ])
+    if (!res) throw new NotFoundException()
+    const rooms = res.items.map(item => `<li>Room ${esc(item.room.number)} · ${esc(item.room.roomType.name)}<br><small>${iso(item.checkIn)} to ${iso(item.checkOut)}</small></li>`).join('')
+    const extras = res.addOns.length ? `<p><b>Extra services:</b> ${res.addOns.map(x => `${esc(x.name)} × ${x.quantity}`).join(', ')}</p>` : ''
+    return `<!doctype html><meta charset=utf-8><title>Booking confirmation ${esc(res.ref)}</title><body style="font-family:Arial,sans-serif;max-width:720px;margin:36px auto;color:#102542"><section style="border:1px solid #dbe5f2;border-radius:18px;padding:34px"><p style="letter-spacing:2px;color:#2563eb;font-size:12px;font-weight:bold">BOOKING CONFIRMATION</p><h1 style="margin:0 0 8px">${esc(hotel.name)}</h1><p>Your booking reference is <b>${esc(res.ref)}</b>.</p><hr style="border:0;border-top:1px solid #e5edf6;margin:24px 0"><h2>Guest details</h2><p><b>${esc(res.guest.name)}</b><br>${esc(res.guest.email || res.guest.phone || 'Contact details not added')}</p><h2>Your stay</h2><ul style="padding-left:20px">${rooms}</ul>${extras}<div style="background:#f4f8ff;border-radius:12px;padding:16px;margin-top:22px"><b>Total booking value: LKR ${money(res.totalAmount)}</b><br><span>Paid: LKR ${money(res.depositPaid)} · Balance: LKR ${money(res.totalAmount - res.depositPaid)}</span></div><p style="margin-top:28px">Please bring your booking reference when you arrive. We look forward to welcoming you.</p><button onclick="print()">Print / Save as PDF</button></section></body>`
+  }
+
+  @Get('reservations/:id/registration-card') @Roles('ADMIN', 'MANAGER', 'RECEPTIONIST') @Header('Content-Type', 'text/html')
+  async registrationCard(@Req() r: any, @Param('id') id: string) {
+    const [res, hotel] = await Promise.all([
+      db.reservation.findFirst({ where: { id, hotelId: r.hotelId }, include: { guest: true, items: { include: { room: true } } } }),
+      db.hotel.findUniqueOrThrow({ where: { id: r.hotelId } }),
+    ])
+    if (!res) throw new NotFoundException()
+    const first = res.items[0]
+    return `<!doctype html><meta charset=utf-8><title>Guest registration ${esc(res.ref)}</title><body style="font-family:Arial,sans-serif;max-width:760px;margin:30px auto;color:#102542"><h1>${esc(hotel.name)}</h1><p style="letter-spacing:2px;font-size:12px;font-weight:bold;color:#2563eb">GUEST REGISTRATION CARD</p><table width=100% cellpadding=10 style="border-collapse:collapse" border=1><tr><td width=50%><b>Booking reference</b><br>${esc(res.ref)}</td><td><b>Room</b><br>${first ? esc(first.room.number) : '-'}</td></tr><tr><td><b>Guest name</b><br>${esc(res.guest.name)}</td><td><b>Contact</b><br>${esc(res.guest.email || res.guest.phone || '')}</td></tr><tr><td><b>Check-in</b><br>${first ? iso(first.checkIn) : '-'}</td><td><b>Check-out</b><br>${first ? iso(first.checkOut) : '-'}</td></tr><tr><td><b>Passport / NIC number</b><br><br>________________________________</td><td><b>Nationality</b><br><br>________________________________</td></tr><tr><td colspan=2><b>Home address</b><br><br><br>____________________________________________________________________________</td></tr><tr><td colspan=2><b>Guest signature</b><br><br><br>____________________________________________________________________________</td></tr></table><p style="font-size:12px;color:#526579">Please verify the information above at check-in. This card is intended for hotel records.</p><button onclick="print()">Print / Save as PDF</button></body>`
+  }
 }

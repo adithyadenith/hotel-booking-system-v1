@@ -1,14 +1,15 @@
 "use client"
 import { useEffect, useState } from "react"
 import { api } from "@/lib/api"
+import { PageError, PageLoading } from "@/components/page-state"
 
 const TIMEZONES = ["Asia/Colombo", "Asia/Kolkata", "Asia/Dubai", "Asia/Singapore", "Europe/London", "America/New_York", "Australia/Sydney"]
 
 export default function Settings() {
   const [data, setData] = useState<any>(null), [err, setErr] = useState(""), [saved, setSaved] = useState(false)
   useEffect(() => { api("/hotel-settings").then(setData).catch(e => setErr(e.message)) }, [])
-  if (err) return <><h1>Settings</h1><div className="err">{err}</div></>
-  if (!data) return <><h1>Settings</h1><div className="muted">Loading…</div></>
+  if (err) return <><h1>Settings</h1><PageError compact title="Settings could not be loaded" message={err} onRetry={() => window.location.reload()} /></>
+  if (!data) return <><h1>Settings</h1><PageLoading label="Loading hotel settings…" /></>
   async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setSaved(false); setErr("")
     const f = new FormData(e.currentTarget)
@@ -19,10 +20,10 @@ export default function Settings() {
   }
   return <>
     <h1>Settings</h1>
-    <p className="muted">Manage the hotel information used across bookings, invoices, reports, and the booking widget.</p>
+    <p className="muted">Manage the hotel information used in bookings, bills, reports, and website bookings.</p>
     {err && <div className="err">{err}</div>}{saved && <div className="ok">Settings saved successfully.</div>}
     <div className="card">
-      <h3>Hotel profile and booking defaults</h3>
+      <h3>Hotel information and booking settings</h3>
       <form onSubmit={save}>
         <div className="row"><label style={{ flex: 1 }}>Hotel name<input name="name" defaultValue={data.name} required maxLength={120} /></label>
           <label>Currency<input name="currency" defaultValue={data.currency} pattern="[A-Za-z]{3}" maxLength={3} required title="Use a 3-letter currency code, for example LKR" /></label></div>
@@ -32,8 +33,8 @@ export default function Settings() {
         <button>Save settings</button>
       </form>
     </div>
-    <div className="card" style={{ marginTop: 16 }}><h3>Other settings</h3><div className="row">
-      <a className="btn" href="/setup">Rooms, rates, staff and payments</a><a className="btn" href="/widget">Widget branding and domains</a><a className="btn" href="/notifications">Notification delivery</a>
+    <div className="card" style={{ marginTop: 16 }}><h3>More settings</h3><div className="row">
+      <a className="btn" href="/setup">Rooms, rates, staff and payments</a><a className="btn" href="/widget">Widget branding and domains</a><a className="btn" href="/notifications">Guest messages</a>
     </div></div>
   </>
 }

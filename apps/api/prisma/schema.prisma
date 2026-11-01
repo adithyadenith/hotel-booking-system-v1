@@ -420,6 +420,7 @@ model Notification {
   type      String
   title     String
   body      String    @default("")
+  audience  String[]  @default(["ADMIN", "MANAGER", "RECEPTIONIST", "HOUSEKEEPING"])
   readAt    DateTime?
   createdAt DateTime  @default(now())
   hotel     Hotel     @relation(fields: [hotelId], references: [id])

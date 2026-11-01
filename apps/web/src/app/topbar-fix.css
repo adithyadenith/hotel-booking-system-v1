@@ -1,0 +1,14 @@
+@media (min-width:901px){
+  .topbar{position:relative;display:flex;align-items:center}
+  .topbar-right{position:absolute;right:28px;top:50%;transform:translateY(-50%);z-index:3;display:flex;align-items:center;gap:18px;background:#fff;padding-left:12px}
+  .top-search{z-index:1}
+  .notification-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;color:#263f5e;padding:4px;font-size:0}
+  .notification-icon{display:block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .notification-btn span{right:-1px;top:-2px}
+  .top-user{min-width:0;display:flex;align-items:center;gap:9px}
+  .top-user .user-copy{display:flex;min-width:110px}
+  .chevron{display:inline-block!important;color:#7187a2;font-size:19px;line-height:1;margin-left:4px}
+}
+.top-search-icon{position:relative!important;display:block;width:15px;height:15px;border:2px solid #91a3b8;border-radius:50%;font-size:0!important;line-height:0;flex:0 0 15px}
+.top-search-icon::after{content:"";position:absolute;width:7px;height:2px;background:#91a3b8;border-radius:2px;right:-5px;bottom:-2px;transform:rotate(45deg);transform-origin:left center}
+.topbar .chevron{display:block!important;width:8px;height:8px;border-right:2px solid #7187a2;border-bottom:2px solid #7187a2;transform:rotate(45deg);margin:0 3px 5px 6px;flex:0 0 8px;font-size:0}

@@ -21,6 +21,8 @@ export class ReservationsController {
   checkOut(@Req() r: any, @Param('id') id: string) { return this.s.transition(r.hotelId, r.user.id, id, 'check-out') }
   @Post('reservations/:id/cancel') @Roles('ADMIN', 'MANAGER', 'RECEPTIONIST')
   cancel(@Req() r: any, @Param('id') id: string) { return this.s.transition(r.hotelId, r.user.id, id, 'cancel') }
+  @Post('reservations/:id/no-show') @Roles('ADMIN', 'MANAGER', 'RECEPTIONIST')
+  noShow(@Req() r: any, @Param('id') id: string) { return this.s.transition(r.hotelId, r.user.id, id, 'no-show') }
   @Post('reservations/:id/add-ons') @Roles('ADMIN', 'MANAGER', 'RECEPTIONIST')
   addOn(@Req() r: any, @Param('id') id: string, @Body() b: unknown) { return this.s.addOn(r.hotelId, r.user.id, id, b) }
 }

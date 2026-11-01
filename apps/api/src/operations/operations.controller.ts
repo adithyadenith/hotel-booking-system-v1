@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, NotFoundException, Param, P
 import { z } from 'zod'
 import { AuthGuard, Roles } from '../common/guards'
 import { db } from '../reservations/reservations.service'
+import { notify } from '../notifications/notifications.service'
 
 const dayTime = z.string().datetime().optional().nullable()
 const checklist = z.array(z.object({ label: z.string().min(1).max(120), checked: z.boolean(), note: z.string().max(300).optional() })).max(30)
@@ -107,20 +108,22 @@ export class OperationsController {
 
   @Post('work-orders') @Roles('ADMIN', 'MANAGER', 'RECEPTIONIST') async createWorkOrder(@Req() r: any, @Body() b: unknown) {
     const d = z.object({ roomId: z.string().uuid(), title: z.string().min(1).max(120), description: z.string().max(1000).default(''), category: z.string().max(50).default('GENERAL'), priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'), assignedToId: z.string().uuid().nullable().optional(), dueAt: dayTime }).parse(b)
-    await ownRoom(r.hotelId, d.roomId)
+    const room = await ownRoom(r.hotelId, d.roomId)
     if (d.assignedToId && !(await db.membership.findFirst({ where: { hotelId: r.hotelId, userId: d.assignedToId, role: { in: ['ADMIN', 'MANAGER', 'RECEPTIONIST'] } } }))) throw new BadRequestException('Assigned staff member is not part of this hotel')
     const item = await db.maintenanceWorkOrder.create({ data: { hotelId: r.hotelId, createdById: r.user.id, ...d, dueAt: d.dueAt ? new Date(d.dueAt) : null } })
     await audit(r.hotelId, r.user.id, 'MAINTENANCE_WORK_ORDER_CREATED', 'MaintenanceWorkOrder', item.id)
+    await notify(db, r.hotelId, 'ROOM_MAINTENANCE', `Maintenance: Room ${room.number}`, d.title)
     return item
   }
 
   @Patch('work-orders/:id') @Roles('ADMIN', 'MANAGER', 'RECEPTIONIST') async updateWorkOrder(@Req() r: any, @Param('id') id: string, @Body() b: unknown) {
     const d = z.object({ status: z.enum(['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(), priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(), assignedToId: z.string().uuid().nullable().optional(), notes: z.string().max(1000).optional() }).parse(b)
-    const existing = await db.maintenanceWorkOrder.findFirst({ where: { id, hotelId: r.hotelId } })
+    const existing = await db.maintenanceWorkOrder.findFirst({ where: { id, hotelId: r.hotelId }, include: { room: true } })
     if (!existing) throw new NotFoundException('Work order not found')
     const { notes, ...changes } = d
     const item = await db.maintenanceWorkOrder.update({ where: { id }, data: { ...changes, ...(notes === undefined ? {} : { description: notes }), completedAt: d.status === 'COMPLETED' ? new Date() : d.status ? null : undefined } })
     await audit(r.hotelId, r.user.id, 'MAINTENANCE_WORK_ORDER_UPDATED', 'MaintenanceWorkOrder', item.id)
+    await notify(db, r.hotelId, 'ROOM_MAINTENANCE', `Maintenance updated: Room ${existing.room.number}`, d.status ? d.status.replace('_', ' ') : existing.title)
     return item
   }
 
@@ -134,6 +137,7 @@ export class OperationsController {
     if (d.assignedToId && !(await db.membership.findFirst({ where: { hotelId: r.hotelId, userId: d.assignedToId, role: 'HOUSEKEEPING' } }))) throw new BadRequestException('Assigned staff member is not housekeeping staff')
     const item = await db.housekeepingTask.create({ data: { hotelId: r.hotelId, createdById: r.user.id, status: d.assignedToId ? 'ASSIGNED' : 'UNASSIGNED', ...d, dueAt: d.dueAt ? new Date(d.dueAt) : null } })
     await audit(r.hotelId, r.user.id, 'HOUSEKEEPING_TASK_CREATED', 'HousekeepingTask', item.id)
+    await notify(db, r.hotelId, 'HOUSEKEEPING_TASK', `Housekeeping task: Room ${d.roomId}`, d.notes || d.taskType)
     return item
   }
 
@@ -144,6 +148,7 @@ export class OperationsController {
     if (r.role === 'HOUSEKEEPING' && existing.assignedToId !== r.user.id) throw new BadRequestException('This task is assigned to another staff member')
     const item = await db.housekeepingTask.update({ where: { id }, data: { ...d, completedAt: d.status === 'COMPLETED' ? new Date() : d.status ? null : undefined } })
     await audit(r.hotelId, r.user.id, 'HOUSEKEEPING_TASK_UPDATED', 'HousekeepingTask', item.id)
+    await notify(db, r.hotelId, 'HOUSEKEEPING_TASK', `Housekeeping task updated`, d.status ? d.status.replace('_', ' ') : 'Task details changed')
     return item
   }
 }

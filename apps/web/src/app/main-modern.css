@@ -1,0 +1,61 @@
+/* Shared visual language for the main hotel-management workspaces. */
+.main{background:#f4f7fb}
+.main>h1{max-width:1500px;margin:0 auto 8px;color:#102846;font-size:30px;line-height:1.2;letter-spacing:-.03em}
+.main>h1+p,.main>h1~.muted{max-width:1500px;margin:0 auto 22px;color:#7186a0;font-size:14px;line-height:1.5}
+.main>.err{max-width:1500px;margin:16px auto;padding:13px 15px;border:1px solid #ffd5da;border-radius:12px;background:#fff4f5;color:#c13e4e}
+.main>.ok{max-width:1500px;margin:16px auto;padding:13px 15px;border:1px solid #c9eedf;border-radius:12px;background:#effcf7;color:#078a63}
+.main>.card,.main>.grid,.main>.row,.main>form{max-width:1500px;margin-left:auto;margin-right:auto}
+.main>.card{border:1px solid #e0e8f1;border-radius:17px;background:#fff;box-shadow:0 9px 26px #17365d0a;padding:23px;margin-bottom:18px}
+.main>.card h2,.main>.card h3{margin-top:0;color:#102846;letter-spacing:-.02em}
+.main>.card h3{font-size:18px;margin-bottom:7px}
+.main>.card>.muted{color:#7186a0;line-height:1.5}
+.main>.grid{gap:16px}
+.main>.grid .card{border:1px solid #e0e8f1;border-radius:15px;box-shadow:0 7px 20px #17365d0a}
+.main>.row{align-items:flex-end;gap:12px;margin-top:14px;margin-bottom:18px}
+.main>.row label,.main>.card label{display:flex;flex-direction:column;gap:7px;color:#57708e;font-size:11px;font-weight:750}
+.main input,.main select,.main textarea{border:1px solid #d6e2ef;border-radius:10px;background:#fbfdff;color:#1c3552;min-height:42px;padding:10px 12px;font:inherit;outline:none;transition:.18s ease}
+.main textarea{min-height:92px;resize:vertical}
+.main input:focus,.main select:focus,.main textarea:focus{border-color:#76a0ed;box-shadow:0 0 0 3px #3671df18;background:#fff}
+.main button,.main .btn{border-radius:9px;min-height:42px;font-weight:700;transition:.18s ease}
+.main button:hover,.main .btn:hover{transform:translateY(-1px)}
+.main button.sec,.main .btn.sec{background:#eef3f8;color:#294360;border:1px solid #d8e3ee}
+.main table{border-collapse:separate;border-spacing:0;overflow:hidden;border:1px solid #e1e9f2;border-radius:12px;background:#fff}
+.main th{background:#f5f8fb;color:#7288a2;font-size:10px;font-weight:850;letter-spacing:.06em;text-transform:uppercase;padding:13px 14px;border-bottom:1px solid #e1e9f2;white-space:nowrap}
+.main td{padding:14px;color:#29435f;font-size:13px;border-bottom:1px solid #edf1f5;vertical-align:middle}
+.main tr:last-child td{border-bottom:0}
+.main tbody tr:hover td{background:#fbfdff}
+.main .table-scroll,.main .tl{border-radius:12px}
+.main .badge{font-weight:750;padding:5px 9px}
+.main .loading,.main .empty-state{padding:38px 20px;text-align:center;color:#8093aa;border:1px dashed #d8e3ee;border-radius:12px;background:#fbfdff}
+.main .filters,.main .filter-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;padding:14px;border:1px solid #e2eaf2;border-radius:13px;background:#f8fafc;margin-bottom:16px}
+.main .filters label,.main .filter-row label{min-width:150px}
+.main .pagination{display:flex;justify-content:flex-end;align-items:center;gap:7px;margin-top:16px}
+.main .pagination button{min-width:38px;padding:8px 11px;background:#fff;color:#315fd2;border:1px solid #d8e3ee}
+.main .pagination button.active{background:#315fd2;color:#fff;border-color:#315fd2}
+.main .section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:17px}
+.website-section-tabs{display:flex;gap:8px;max-width:1500px;margin:0 auto 22px;padding:6px;background:#eaf0f7;border:1px solid #dce6f1;border-radius:14px;overflow-x:auto}
+.website-section-tabs a{padding:11px 17px;border-radius:10px;color:#607793;font-size:12px;font-weight:800;white-space:nowrap}
+.website-section-tabs a:hover{background:#fff;color:#2d62d3}
+.website-section-tabs a.active{background:#142945;color:#fff;box-shadow:0 7px 16px #14294526}
+.main .section-heading h2,.main .section-heading h3{margin:0}
+@media(max-width:800px){.main>h1{font-size:25px}.main>.card{padding:18px;border-radius:15px}.main>.row{align-items:stretch}.main>.row>*{flex:1 1 180px}.main table{min-width:680px}.main>.card{overflow-x:auto}.main .filters,.main .filter-row{align-items:stretch}.main .filters label,.main .filter-row label{flex:1 1 180px}}
+@media(max-width:520px){.main{padding-left:12px;padding-right:12px}.main>h1{font-size:23px}.main>.card{padding:15px}.main th,.main td{padding:11px 10px}.main>.row{gap:9px}.main>.row>*{flex-basis:100%}.main .section-heading{flex-direction:column}.main .filters,.main .filter-row{padding:11px}.main .filters label,.main .filter-row label{flex-basis:100%}}
+/* Split-window layout: keep the named navigation and make the header wrap cleanly. */
+@media(min-width:601px) and (max-width:1100px){
+  .side{width:220px;padding-left:10px;padding-right:10px}
+  .side .brand{min-width:198px;padding-left:8px;padding-right:8px}
+  .side .brand-copy,.side .side-label,.side .nav-label,.side .user-copy,.side .user-more{display:flex}
+  .side .side-label{display:block}
+  .side .nav-label{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .side .side-user{min-width:198px}
+  .side a,.side .collapse-btn{justify-content:flex-start;padding-left:10px;padding-right:8px}
+  .side .nav-badge{position:static;margin-left:auto;padding:3px 6px}
+  .main{padding-left:18px;padding-right:18px}
+  .topbar{margin-left:-18px;margin-right:-18px;padding-left:18px;padding-right:18px;gap:12px;flex-wrap:wrap;height:auto;min-height:78px;padding-top:14px;padding-bottom:14px}
+  .topbar-title{font-size:20px;min-width:130px;flex:0 0 auto}
+  .top-search{order:3;flex:1 1 100%;max-width:none;margin-left:0;height:40px}
+  .topbar-right{margin-left:auto;gap:10px}
+  .top-user{min-width:128px}
+  .top-user .user-copy{display:flex}
+  .top-user .chevron{display:block}
+}

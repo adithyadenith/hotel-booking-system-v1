@@ -1,0 +1,8 @@
+.dashboard-receptionist .chart-panel,
+.dashboard-receptionist .revenue-sources-panel {
+  display: none;
+}
+
+.operations-receptionist .operations-columns > .operations-card:nth-child(2) {
+  display: none;
+}

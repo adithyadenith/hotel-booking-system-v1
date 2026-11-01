@@ -1,4 +1,1 @@
-{ "name": "hotel-web", "private": true,
-  "scripts": { "dev": "next dev -p 3000", "build": "next build", "start": "next start" },
-  "dependencies": { "next": "^14.2.0", "react": "^18.3.0", "react-dom": "^18.3.0" },
-  "devDependencies": { "@types/node": "^20", "@types/react": "^18", "typescript": "^5" } }
+{"name":"hotel-web","private":true,"scripts":{"dev":"next dev -p 3000","build":"next build","start":"next start","test:e2e":"playwright test"},"dependencies":{"react":"^18.3.0","react-dom":"^18.3.0"},"devDependencies":{"@playwright/test":"^1.64.1","@types/node":"^20","@types/react":"^18","next":"^15.5.28","typescript":"^5"}}

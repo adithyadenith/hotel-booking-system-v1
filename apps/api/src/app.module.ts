@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common'
 import { JwtModule } from '@nestjs/jwt'
 import { APP_GUARD } from '@nestjs/core'
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
+import { ThrottlerModule } from '@nestjs/throttler'
+import { HotelThrottlerGuard } from './common/hotel-throttler.guard'
 import { AuthController } from './auth/auth.controller'
 import { ReservationsController } from './reservations/reservations.controller'
 import { PaymentsController } from './payments/payments.controller'
@@ -31,6 +32,6 @@ import { HealthController } from './health.controller'
   imports: [JwtModule.register({ global: true, secret: process.env.JWT_SECRET!, signOptions: { expiresIn: '12h' } }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }])],
   controllers: [HealthController, AuthController, ReservationsController, PaymentsController, NotificationsController, DeliveryController, HousekeepingController, OperationsController, IntegrationsController, IntegrationsPublicController, CalendarFeedController, ChannelManagerController, GuestsController, ReportsController, PublicController, WidgetAdminController, AdminController, PlatformController, AuditController, SearchController, AddOnsController, PackagesController],
-  providers: [ReservationsService, PaymentsService, NotificationsService, PublicService, DeliveryService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [ReservationsService, PaymentsService, NotificationsService, PublicService, DeliveryService, { provide: APP_GUARD, useClass: HotelThrottlerGuard }],
 })
 export class AppModule {}

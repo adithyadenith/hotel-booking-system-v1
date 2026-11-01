@@ -1,0 +1,7 @@
+ALTER TABLE "Notification"
+  ADD COLUMN IF NOT EXISTS "audience" TEXT[] NOT NULL
+  DEFAULT ARRAY['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING']::TEXT[];
+
+UPDATE "Notification"
+SET "audience" = ARRAY['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING']::TEXT[]
+WHERE "audience" IS NULL OR cardinality("audience") = 0;

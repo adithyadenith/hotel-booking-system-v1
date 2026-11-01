@@ -1,0 +1,25 @@
+.login-password-wrap {
+  position: relative;
+}
+
+.login-password-wrap input {
+  padding-right: 68px;
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  min-height: 32px;
+  height: 32px;
+  padding: 4px 9px;
+  border-radius: 7px;
+  background: #edf3ff;
+  color: #315fd2;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.login-password-toggle:hover {
+  background: #dce8ff;
+}

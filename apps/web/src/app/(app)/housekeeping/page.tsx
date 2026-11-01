@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState, useCallback } from "react"
 import { api, session } from "@/lib/api"
+import { PageError, PageLoading } from "@/components/page-state"
 const ST: Record<string, string> = { CLEAN: "✓ Clean", DIRTY: "● Dirty", CLEANING: "◔ Cleaning in progress", INSPECTION: "? Inspection required", OUT_OF_SERVICE: "⛔ Out of service" }
 export default function Housekeeping() {
   const [rooms, setRooms] = useState<any[] | null>(null), [staff, setStaff] = useState<any[]>([]), [err, setErr] = useState(""), [role, setRole] = useState("")
@@ -8,8 +9,9 @@ export default function Housekeeping() {
     try { const r = session()?.role; setRole(r); setRooms(await api("/housekeeping")); if (r !== "HOUSEKEEPING") setStaff(await api("/housekeeping/staff")) } catch (e: any) { setErr(e.message) } }, [])
   useEffect(() => { load() }, [load])
   async function patch(id: string, body: any) { try { await api("/housekeeping/" + id, { method: "PATCH", body }); load() } catch (e: any) { setErr(e.message) } }
-  if (!rooms) return <div className="muted">{err || "Loading…"}</div>
-  return <><h1>Housekeeping</h1>{err && <div className="err">{err}</div>}
+  if (!rooms && err) return <PageError title="Room cleaning could not be loaded" message={err} onRetry={load} />
+  if (!rooms) return <PageLoading label="Loading room cleaning tasks…" />
+  return <><h1>Room cleaning</h1>{err && <div className="err">{err}</div>}
     <div className="card" style={{ overflowX: "auto" }}>{rooms.length === 0 ? <p className="muted">No rooms to show.</p> :
       <table><thead><tr><th>Room</th><th>Status</th>{role !== "HOUSEKEEPING" && <th>Assigned to</th>}<th>Notes</th></tr></thead><tbody>
         {rooms.map(r => <tr key={r.id}><td><b>{r.number}</b> <span className="muted">{r.roomType.name} · floor {r.floor}</span></td>

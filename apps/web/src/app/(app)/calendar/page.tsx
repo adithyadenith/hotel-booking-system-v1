@@ -2,12 +2,15 @@
 import { useEffect, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { api, iso, addDays, STATUS } from "@/lib/api"
+import { PageError, PageLoading } from "@/components/page-state"
 const DAYS = 14
 export default function Calendar() {
-  const params = useSearchParams(), [start, setStart] = useState(() => { const date = params.get("date"); return new Date((date || iso(new Date())) + "T00:00:00Z") }), [rooms, setRooms] = useState<any[]>([]), [err, setErr] = useState("")
+  const params = useSearchParams(), [start, setStart] = useState(() => { const date = params.get("date"); return new Date((date || iso(new Date())) + "T00:00:00Z") }), [rooms, setRooms] = useState<any[] | null>(null), [err, setErr] = useState("")
   const [sel, setSel] = useState<any>(null), [name, setName] = useState(""), [nights, setNights] = useState(1), [adults, setAdults] = useState(1), [busy, setBusy] = useState(false)
-  const load = useCallback(async () => { try { setRooms(await api("/calendar?from=" + iso(start) + "&to=" + iso(addDays(start, DAYS)))) } catch (e: any) { setErr(e.message) } }, [start])
+  const load = useCallback(async () => { try { setErr(""); setRooms(await api("/calendar?from=" + iso(start) + "&to=" + iso(addDays(start, DAYS)))) } catch (e: any) { setErr(e.message) } }, [start])
   useEffect(() => { load() }, [load])
+  if (err && !rooms) return <PageError title="Booking calendar could not be loaded" message={err} onRetry={load} />
+  if (!rooms) return <PageLoading label="Loading booking calendar…" />
   const days = Array.from({ length: DAYS }, (_, i) => addDays(start, i))
   async function book() {
     setBusy(true); setErr("")

@@ -8,8 +8,9 @@ import { db, nightsBetween } from '../reservations/reservations.service'
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const Type = z.object({ name: z.string().min(1).max(60), baseRate: z.number().int().min(0), maxOccupancy: z.number().int().min(1).max(20) })
 const Room = z.object({ number: z.string().min(1).max(10), roomTypeId: z.string().uuid(), floor: z.number().int().min(0).max(100) })
-const Rule = z.object({ name: z.string().min(1).max(80), type: z.enum(['SEASON', 'SPECIAL', 'WEEKEND']), roomTypeId: z.string().uuid().nullable().optional(),
+const RuleFields = z.object({ name: z.string().min(1).max(80), type: z.enum(['SEASON', 'SPECIAL', 'WEEKEND']), roomTypeId: z.string().uuid().nullable().optional(),
   startDate: day.optional(), endDate: day.optional(), multiplierBp: z.number().int().min(1000).max(50000) })
+const Rule = RuleFields
   .refine(r => r.type === 'WEEKEND' || (r.startDate && r.endDate && r.endDate >= r.startDate), { message: 'Season/special rules need a valid start and end date' })
 const Promo = z.object({ code: z.string().min(3).max(30).regex(/^[A-Za-z0-9_-]+$/), percentOff: z.number().int().min(1).max(100) })
 const HotelSettings = z.object({
@@ -44,6 +45,12 @@ export class AdminController {
   @Patch('room-types/:id') async patchType(@Req() r: any, @Param('id') id: string, @Body() b: unknown) {
     found((await db.roomType.updateMany({ where: { id, hotelId: r.hotelId }, data: Type.partial().parse(b) })).count); return { ok: true }
   }
+  @Delete('room-types/:id') async deleteType(@Req() r: any, @Param('id') id: string) {
+    const type = await db.roomType.findFirst({ where: { id, hotelId: r.hotelId }, include: { _count: { select: { rooms: true } } } })
+    if (!type) throw new NotFoundException('Room type not found')
+    if (type._count.rooms) throw new BadRequestException('Move or archive the rooms using this type before deleting it')
+    await db.roomType.delete({ where: { id } }); return { ok: true }
+  }
 
   @Get('rooms') rooms(@Req() r: any) { return db.room.findMany({ where: { hotelId: r.hotelId }, include: { roomType: true }, orderBy: { number: 'asc' } }) }
   @Post('rooms') async createRoom(@Req() r: any, @Body() b: unknown) {
@@ -51,13 +58,13 @@ export class AdminController {
     try { return await db.room.create({ data: { hotelId: r.hotelId, ...d } }) } catch (e) { return dup(e, 'Room number already exists') }
   }
   @Patch('rooms/:id') async patchRoom(@Req() r: any, @Param('id') id: string, @Body() b: unknown) {
-    const d = Room.omit({ number: true }).partial().extend({ archived: z.boolean().optional() }).parse(b); await this.ownType(r.hotelId, d.roomTypeId)
+    const d = Room.partial().extend({ archived: z.boolean().optional() }).parse(b); await this.ownType(r.hotelId, d.roomTypeId)
     const { archived, ...rest } = d
     if (archived) {
       const today = new Date(new Date().toISOString().slice(0, 10))
       if (await db.roomNight.count({ where: { roomId: id, room: { hotelId: r.hotelId }, night: { gte: today } } })) throw new BadRequestException('Room has upcoming reservations; move or cancel them first')
     }
-    found((await db.room.updateMany({ where: { id, hotelId: r.hotelId }, data: { ...rest, ...(archived === undefined ? {} : { archivedAt: archived ? new Date() : null }) } })).count); return { ok: true }
+    try { found((await db.room.updateMany({ where: { id, hotelId: r.hotelId }, data: { ...rest, ...(archived === undefined ? {} : { archivedAt: archived ? new Date() : null }) } })).count); return { ok: true } } catch (e) { return dup(e, 'Room number already exists') }
   }
 
   @Get('rate-rules') rules(@Req() r: any) { return db.rateRule.findMany({ where: { hotelId: r.hotelId }, orderBy: { name: 'asc' } }) }
@@ -67,7 +74,9 @@ export class AdminController {
       startDate: d.startDate ? new Date(d.startDate) : null, endDate: d.endDate ? new Date(d.endDate) : null } })
   }
   @Patch('rate-rules/:id') async patchRule(@Req() r: any, @Param('id') id: string, @Body() b: unknown) {
-    found((await db.rateRule.updateMany({ where: { id, hotelId: r.hotelId }, data: z.object({ active: z.boolean() }).parse(b) })).count); return { ok: true }
+    const d = RuleFields.partial().extend({ active: z.boolean().optional() }).parse(b)
+    const { startDate, endDate, ...rest } = d
+    found((await db.rateRule.updateMany({ where: { id, hotelId: r.hotelId }, data: { ...rest, ...(startDate === undefined ? {} : { startDate: startDate ? new Date(startDate) : null }), ...(endDate === undefined ? {} : { endDate: endDate ? new Date(endDate) : null }) } })).count); return { ok: true }
   }
   @Delete('rate-rules/:id') async delRule(@Req() r: any, @Param('id') id: string) { found((await db.rateRule.deleteMany({ where: { id, hotelId: r.hotelId } })).count); return { ok: true } }
 
@@ -77,8 +86,10 @@ export class AdminController {
     try { return await db.promoCode.create({ data: { hotelId: r.hotelId, code: d.code.toUpperCase(), percentOff: d.percentOff } }) } catch (e) { return dup(e, 'Promo code already exists') }
   }
   @Patch('promo-codes/:id') async patchPromo(@Req() r: any, @Param('id') id: string, @Body() b: unknown) {
-    found((await db.promoCode.updateMany({ where: { id, hotelId: r.hotelId }, data: z.object({ active: z.boolean() }).parse(b) })).count); return { ok: true }
+    const d = Promo.partial().extend({ active: z.boolean().optional() }).parse(b)
+    try { found((await db.promoCode.updateMany({ where: { id, hotelId: r.hotelId }, data: { ...d, ...(d.code ? { code: d.code.toUpperCase() } : {}) } })).count); return { ok: true } } catch (e) { return dup(e, 'Promo code already exists') }
   }
+  @Delete('promo-codes/:id') async deletePromo(@Req() r: any, @Param('id') id: string) { found((await db.promoCode.updateMany({ where: { id, hotelId: r.hotelId }, data: { active: false } })).count); return { ok: true } }
 
   @Get('maintenance-blocks') blocks(@Req() r: any) {
     return db.maintenanceBlock.findMany({ where: { hotelId: r.hotelId, endDate: { gte: new Date(new Date().toISOString().slice(0, 10)) } }, include: { room: true }, orderBy: { startDate: 'asc' } })
@@ -101,6 +112,19 @@ export class AdminController {
       })
     } catch (e) { return dup(e, 'Those dates overlap an existing reservation or block') }
   }
+  @Patch('maintenance-blocks/:id') async updateBlock(@Req() r: any, @Param('id') id: string, @Body() b: unknown) {
+    const d = z.object({ startDate: day, endDate: day, reason: z.string().max(200).default('') }).refine(x => x.endDate > x.startDate, { message: 'End must be after start' }).parse(b)
+    const existing = await db.maintenanceBlock.findFirst({ where: { id, hotelId: r.hotelId } }); if (!existing) throw new NotFoundException('Maintenance block not found')
+    const updated = await db.$transaction(async tx => {
+      const overlap = await tx.reservationItem.findFirst({ where: { roomId: existing.roomId, active: true, checkIn: { lt: new Date(d.endDate) }, checkOut: { gt: new Date(d.startDate) }, reservation: { hotelId: r.hotelId, status: { notIn: ['CANCELLED', 'NO_SHOW'] } } }, select: { id: true } })
+      if (overlap) throw new ConflictException('Those dates overlap an existing reservation')
+      await tx.roomNight.deleteMany({ where: { blockId: id } })
+      const item = await tx.maintenanceBlock.update({ where: { id }, data: { startDate: new Date(d.startDate), endDate: new Date(d.endDate), reason: d.reason } })
+      await tx.roomNight.createMany({ data: nightsBetween(d.startDate, d.endDate).map(night => ({ roomId: existing.roomId, night, blockId: id })) })
+      return item
+    })
+    return updated
+  }
   @Delete('maintenance-blocks/:id') async unblock(@Req() r: any, @Param('id') id: string) { found((await db.maintenanceBlock.deleteMany({ where: { id, hotelId: r.hotelId } })).count); await db.auditLog.create({ data: { hotelId: r.hotelId, userId: r.user.id, action: 'MAINTENANCE_UNBLOCK', entity: 'MaintenanceBlock', entityId: id } }); return { ok: true } }
 
   @Get('staff') @Roles('ADMIN') async staff(@Req() r: any) {
@@ -116,9 +140,19 @@ export class AdminController {
     return { userId: u.id, email: u.email, role: d.role }
   }
   @Patch('staff/:userId') @Roles('ADMIN') async setRole(@Req() r: any, @Param('userId') id: string, @Body() b: unknown) {
-    if (id === r.user.id) throw new BadRequestException('You cannot change your own role')
-    found((await db.membership.updateMany({ where: { userId: id, hotelId: r.hotelId }, data: { role: z.object({ role: z.enum(ROLES) }).parse(b).role } })).count)
-    await db.auditLog.create({ data: { hotelId: r.hotelId, userId: r.user.id, action: 'STAFF_ROLE', entity: 'User', entityId: id } }); return { ok: true }
+    const dto = z.object({ role: z.enum(ROLES).optional(), name: z.string().trim().min(2).max(80).optional() }).refine(x => x.role || x.name, { message: 'Choose a role or enter a staff name' }).parse(b)
+    if (id === r.user.id && dto.role) throw new BadRequestException('You cannot change your own role')
+    if (dto.role) found((await db.membership.updateMany({ where: { userId: id, hotelId: r.hotelId }, data: { role: dto.role } })).count)
+    else if (!(await db.membership.findFirst({ where: { userId: id, hotelId: r.hotelId } }))) throw new NotFoundException()
+    if (dto.name) await db.user.update({ where: { id }, data: { name: dto.name } })
+    await db.auditLog.create({ data: { hotelId: r.hotelId, userId: r.user.id, action: dto.role ? 'STAFF_ROLE_UPDATED' : 'STAFF_UPDATED', entity: 'User', entityId: id } }); return { ok: true }
+  }
+  @Post('staff/:userId/reset-password') @Roles('ADMIN') async resetStaffPassword(@Req() r: any, @Param('userId') id: string, @Body() b: unknown) {
+    const dto = z.object({ password: z.string().min(10).max(128) }).parse(b)
+    if (!(await db.membership.findFirst({ where: { userId: id, hotelId: r.hotelId } }))) throw new NotFoundException()
+    await db.user.update({ where: { id }, data: { passwordHash: await bcrypt.hash(dto.password, 12) } })
+    await db.auditLog.create({ data: { hotelId: r.hotelId, userId: r.user.id, action: 'STAFF_PASSWORD_RESET', entity: 'User', entityId: id } })
+    return { ok: true }
   }
   @Delete('staff/:userId') @Roles('ADMIN') async removeStaff(@Req() r: any, @Param('userId') id: string) {
     if (id === r.user.id) throw new BadRequestException('You cannot remove yourself')

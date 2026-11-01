@@ -6,16 +6,43 @@ import { api, API, session } from "@/lib/api"
 
 const NAV = [["/dashboard", "Dashboard", "D"], ["/operations", "Hotel operations", "O"], ["/integrations", "Integrations", "↗"], ["/channel-manager", "Channel manager", "↺"], ["/calendar", "Calendar", "C"], ["/reservations", "Bookings", "B"], ["/add-ons", "Add-ons", "+"], ["/packages", "Packages", "%"], ["/guests", "Guests", "G"], ["/housekeeping", "Housekeeping", "H"], ["/reports", "Reports", "R"], ["/widget", "Booking Widget", "W"], ["/setup", "Setup", "S"], ["/settings", "Settings", "O"], ["/audit", "Audit log", "A"], ["/notifications", "Notifications", "N"]]
 const ROLE_ACCESS: Record<string, string[]> = {
-  "/integrations": ["ADMIN", "MANAGER"],
+  "/dashboard": ["ADMIN", "MANAGER"],
+  "/housekeeping": ["ADMIN", "MANAGER", "HOUSEKEEPING"],
+  "/integrations": ["ADMIN"],
   "/channel-manager": ["ADMIN", "MANAGER"],
   "/reports": ["ADMIN", "MANAGER"],
   "/widget": ["ADMIN", "MANAGER"],
+  "/website": ["ADMIN", "MANAGER"],
   "/setup": ["ADMIN", "MANAGER"],
   "/settings": ["ADMIN"],
   "/audit": ["ADMIN", "MANAGER"],
 }
-const canAccess = (path: string, role?: string) => !ROLE_ACCESS[path] || ROLE_ACCESS[path].includes(role || "")
+const canAccess = (path: string, role?: string) => {
+  const rule = Object.entries(ROLE_ACCESS).find(([key]) => path === key || path.startsWith(key + "/"))?.[1]
+  return !rule || rule.includes(role || "")
+}
 const money = (cents: number) => `LKR ${(cents / 100).toLocaleString()}`
+const roleName = (role?: string) => ({ ADMIN: "Administrator", MANAGER: "Manager", RECEPTIONIST: "Front desk", HOUSEKEEPING: "Room cleaning" } as Record<string, string>)[role || ""] || role || "Staff"
+const SIMPLE_NAV_LABELS: Record<string, string> = {
+  Dashboard: "Dashboard",
+  "Hotel operations": "Daily hotel work",
+  Integrations: "Connections",
+  "Channel manager": "Booking site connection",
+  Calendar: "Booking calendar",
+  "Add-ons": "Extra services",
+  Packages: "Special offers",
+  Housekeeping: "Room cleaning",
+  "Booking Widget": "Website booking",
+  Setup: "Hotel setup",
+  "Audit log": "Activity",
+  Settings: "Setting",
+  Notifications: "Messages & alerts",
+}
+NAV.forEach(item => { item[1] = SIMPLE_NAV_LABELS[item[1]] || item[1] })
+NAV.splice(0, NAV.length, ...NAV.filter(item => !["/channel-manager", "/widget"].includes(item[0])))
+const MENU_ORDER = ["/dashboard", "/reservations", "/operations", "/notifications", "/housekeeping", "/reports", "/setup", "/integrations", "/channel-manager", "/widget", "/audit", "/settings"]
+NAV.sort((a, b) => MENU_ORDER.indexOf(a[0]) - MENU_ORDER.indexOf(b[0]))
+NAV.splice(0, NAV.length, ...NAV.filter(item => !["/calendar", "/guests", "/add-ons", "/packages"].includes(item[0])))
 
 function SearchDropdown({ busy, results, query, close }: any) {
   if (busy) return <div className="global-search-results"><div className="search-results-header">Searching...</div></div>
@@ -33,7 +60,7 @@ function SearchDropdown({ busy, results, query, close }: any) {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname(); const [s, setS] = useState<any>(null), [unread, setUnread] = useState(0), [toast, setToast] = useState(""), [collapsed, setCollapsed] = useState(false), [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [search, setSearch] = useState(""), [searchOpen, setSearchOpen] = useState(false), [searchBusy, setSearchBusy] = useState(false), [results, setResults] = useState<any>(null)
-  const current = NAV.find(([h]) => path === h)?.[1] || "Hotel management"
+  const current = path.startsWith("/website") ? "Connections" : NAV.find(([h]) => path === h)?.[1] || "Hotel management"
   useEffect(() => { const x = session(); if (!x) location.href = "/login"; else setS(x) }, [])
   useEffect(() => {
     if (!s) return
@@ -54,11 +81,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const close = (e: KeyboardEvent) => { if (e.key === "Escape") { setSearchOpen(false); setMobileMenuOpen(false) } }
     window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close)
   }, [])
+  const defaultPage = s?.role === "HOUSEKEEPING" ? "/housekeeping" : "/operations"
   useEffect(() => {
-    if (s && path !== "/dashboard" && !canAccess(path, s.role)) location.replace("/dashboard")
-  }, [path, s])
+    if (s && !canAccess(path, s.role)) location.replace(defaultPage)
+  }, [path, s, defaultPage])
   if (!s) return null
-  if (path !== "/dashboard" && !canAccess(path, s.role)) return <main className="main"><div className="err">You do not have permission to view this page. Redirecting to the dashboard…</div></main>
+  if (!canAccess(path, s.role)) return <main className="main"><div className="err">You do not have permission to view this page. Redirecting…</div></main>
   const initials = (s.name || s.hotelName || "H").split(" ").map((x: string) => x[0]).slice(0, 2).join("").toUpperCase()
   const closeSearch = () => setSearchOpen(false)
   const closeMobileMenu = () => setMobileMenuOpen(false)
@@ -69,11 +97,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="side-label">MANAGEMENT</div>
       <div className="nav-list">{NAV.filter(([h]) => canAccess(h, s.role) && (s.role !== "HOUSEKEEPING" || h === "/housekeeping") && (!["/add-ons", "/packages"].includes(h) || ["ADMIN", "MANAGER"].includes(s.role))).map(([h, l, icon]) => <Link key={h} href={h} onClick={closeMobileMenu} className={path === h ? "on" : ""} title={collapsed ? l : undefined}><span className="nav-icon">{icon}</span><span className="nav-label">{l}</span>{l === "Notifications" && unread > 0 && <span className="nav-badge">{unread > 9 ? "9+" : unread}</span>}</Link>)}</div>
       <div className="side-spacer" />
-      <Link href="/widget" onClick={closeMobileMenu} className="website-link" title={collapsed ? "Booking website" : undefined}><span className="nav-icon">&gt;</span><span className="nav-label">Booking website</span></Link>
       <button className="collapse-btn" onClick={() => { setCollapsed(x => !x); closeMobileMenu() }}><span>{collapsed ? ">" : "<"}</span><span className="nav-label">Collapse menu</span></button>
-      <div className="side-user"><span className="user-avatar">{initials}</span><span className="user-copy"><strong>{s.name || "Staff user"}</strong><small>{s.role || "Staff"}</small></span><span className="user-more">...</span></div>
+      <Link className="side-user" href="/account" onClick={closeMobileMenu} title="Open profile and security"><span className="user-avatar">{initials}</span><span className="user-copy"><strong>{s.name || "Staff user"}</strong><small>{roleName(s.role)}</small></span><span className="user-more">...</span></Link>
       <a className="signout-link" href="#" onClick={e => { e.preventDefault(); closeMobileMenu(); localStorage.removeItem("m89"); location.href = "/login" }}><span className="nav-icon">X</span><span className="nav-label">Sign out</span></a>
     </nav>
-    <main className="main"><header className="topbar"><button className="mobile-menu-button" type="button" aria-label="Open navigation menu" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(x => !x)}><span /><span /><span /></button><div className="topbar-title">{current}</div><div className="top-search"><span>?</span><input aria-label="Search bookings and guests" value={search} onChange={e => { setSearch(e.target.value); setSearchOpen(true) }} onFocus={() => setSearchOpen(true)} onKeyDown={e => { if (e.key === "Enter" && search.trim().length >= 2) { setSearchOpen(false); location.href = "/reservations?q=" + encodeURIComponent(search.trim()) } }} placeholder="Search bookings, guests, rooms..." />{search && <button className="search-clear" aria-label="Clear search" onClick={() => { setSearch(""); setResults(null) }}>x</button>}{searchOpen && search.trim().length >= 2 && <SearchDropdown busy={searchBusy} results={results} query={search.trim()} close={closeSearch} />}</div><div className="topbar-right"><button className="notification-btn" title="Notifications" aria-label="Notifications" onClick={() => location.href = "/notifications"}><svg className="notification-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>{unread > 0 && <span>{unread > 9 ? "9+" : unread}</span>}</button><div className="top-user"><span className="user-avatar small">{initials}</span><span className="user-copy"><strong>{s.name || "Staff user"}</strong><small>{s.role || "Staff"}</small></span><span className="chevron">v</span></div></div></header>{toast && <div className="toast">Notice: {toast}</div>}{children}</main>
+    <main className="main"><header className="topbar"><button className="mobile-menu-button" type="button" aria-label="Open navigation menu" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(x => !x)}><span /><span /><span /></button><div className="topbar-title">{current}</div><div className="top-search"><span className="top-search-icon" aria-hidden="true" /><input aria-label="Search bookings and guests" value={search} onChange={e => { setSearch(e.target.value); setSearchOpen(true) }} onFocus={() => setSearchOpen(true)} onKeyDown={e => { if (e.key === "Enter" && search.trim().length >= 2) { setSearchOpen(false); location.href = "/reservations?q=" + encodeURIComponent(search.trim()) } }} placeholder="Search bookings, guests, rooms..." />{search && <button className="search-clear" aria-label="Clear search" onClick={() => { setSearch(""); setResults(null) }}>x</button>}{searchOpen && search.trim().length >= 2 && <SearchDropdown busy={searchBusy} results={results} query={search.trim()} close={closeSearch} />}</div><div className="topbar-right"><button className="notification-btn" title="Notifications" aria-label="Notifications" onClick={() => location.href = "/notifications"}><svg className="notification-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>{unread > 0 && <span>{unread > 9 ? "9+" : unread}</span>}</button><Link className="top-user" href="/account" title="Open profile and security"><span className="user-avatar small">{initials}</span><span className="user-copy"><strong>{s.name || "Staff user"}</strong><small>{roleName(s.role)}</small></span><span className="chevron" aria-hidden="true" /></Link></div></header>{(path === "/integrations" || path.startsWith("/website")) && <nav className="website-section-tabs" aria-label="Connections sections"><Link className={path === "/integrations" ? "active" : ""} href="/integrations">Connections</Link><Link className={path.startsWith("/website/connections") ? "active" : ""} href="/website/connections">Booking site connection</Link><Link className={path.startsWith("/website/booking") ? "active" : ""} href="/website/booking">Website booking</Link></nav>}{toast && <div className="toast">Notice: {toast}</div>}{children}</main>
   </div>
 }

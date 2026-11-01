@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { api, lkr, session } from "@/lib/api"
+import AddOns from "../add-ons/page"
+import Packages from "../packages/page"
 
 function useLoad(path: string) {
   const [d, setD] = useState<any[] | null>(null), [e, setE] = useState("")
@@ -16,16 +18,25 @@ const fd = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); const 
 
 function Rooms({ setErr }: any) {
   const types = useLoad("/room-types"), rooms = useLoad("/rooms")
+  const [editingType, setEditingType] = useState<any>(null), [savingType, setSavingType] = useState(false), [editingRoom, setEditingRoom] = useState<any>(null), [savingRoom, setSavingRoom] = useState(false)
   const reload = () => { types.load(); rooms.load() }
+  const editType = (t: any) => setEditingType({ ...t, rate: String(t.baseRate / 100), occupancy: String(t.maxOccupancy) })
+  const saveType = async (e: React.FormEvent) => { e.preventDefault(); if (!editingType) return; setSavingType(true); try { await api(`/room-types/${editingType.id}`, { method: "PATCH", body: { name: editingType.name.trim(), baseRate: Math.round(Number(editingType.rate) * 100), maxOccupancy: Number(editingType.occupancy) } }); setEditingType(null); reload(); setErr("") } catch (e: any) { setErr(e.message) } finally { setSavingType(false) } }
+  const deleteType = async (t: any) => { if (!confirm(`Delete room type ${t.name}? It must not have rooms assigned.`)) return; go(() => api(`/room-types/${t.id}`, { method: "DELETE" }), setErr, reload) }
+  const editRoom = async (r: any) => { const floor = prompt("Floor", String(r.floor)); if (floor === null) return; go(() => api(`/rooms/${r.id}`, { method: "PATCH", body: { floor: Number(floor) } }), setErr, reload) }
+  const openRoomEdit = (r: any) => setEditingRoom({ ...r, type: r.roomTypeId, floorValue: String(r.floor) })
+  const saveRoom = async (e: React.FormEvent) => { e.preventDefault(); if (!editingRoom) return; setSavingRoom(true); try { await api(`/rooms/${editingRoom.id}`, { method: "PATCH", body: { number: editingRoom.number.trim(), roomTypeId: editingRoom.type, floor: Number(editingRoom.floorValue) } }); setEditingRoom(null); reload(); setErr("") } catch (e: any) { setErr(e.message) } finally { setSavingRoom(false) } }
   return <>
-    <div className="card"><h3>Room types</h3>
+    <div className="card"><div className="setup-card-heading"><div><h3>Room types</h3><p className="muted">Edit the name, nightly price, and maximum guests for any room type.</p></div></div>
+      {editingType && <form className="room-type-edit-card" onSubmit={saveType}><div><span className="setup-form-eyebrow">EDIT ROOM TYPE</span><h3>Edit {editingType.name}</h3><p>Changes will apply to this room type and its available rooms.</p></div><div className="room-type-edit-fields"><label>Name<input value={editingType.name} onChange={e => setEditingType({ ...editingType, name: e.target.value })} required /></label><label>Nightly rate (LKR)<input type="number" min="0" step="0.01" value={editingType.rate} onChange={e => setEditingType({ ...editingType, rate: e.target.value })} required /></label><label>Maximum guests<input type="number" min="1" max="20" value={editingType.occupancy} onChange={e => setEditingType({ ...editingType, occupancy: e.target.value })} required /></label></div><div className="room-type-edit-actions"><button type="button" className="sec" onClick={() => setEditingType(null)}>Cancel</button><button type="submit" disabled={savingType}>{savingType ? "Saving..." : "Save changes"}</button></div></form>}
       <table><tbody>{(types.d || []).map(t => <tr key={t.id}><td>{t.name}</td><td>{lkr(t.baseRate)} / night</td><td>Sleeps {t.maxOccupancy}</td>
-        <td><button className="sec" onClick={() => { const v = prompt("New base rate (LKR)", String(t.baseRate / 100)); if (v) go(() => api("/room-types/" + t.id, { method: "PATCH", body: { baseRate: Math.round(+v * 100) } }), setErr, reload) }}>Edit rate</button></td></tr>)}</tbody></table>
+        <td><button className="sec" onClick={() => editType(t)}>Edit</button><button className="danger-mini" onClick={() => deleteType(t)}>Delete</button></td></tr>)}</tbody></table>
       <form className="row" onSubmit={e => { const f = fd(e), form = e.currentTarget; go(async () => { await api("/room-types", { method: "POST", body: { name: f.name, baseRate: Math.round(+f.rate * 100), maxOccupancy: +f.occ } }); form.reset() }, setErr, reload) }}>
         <input name="name" placeholder="Name (e.g. Deluxe)" required /><input name="rate" type="number" min="0" step="0.01" placeholder="Base rate LKR" required /><input name="occ" type="number" min="1" placeholder="Max guests" required /><button>Add type</button></form></div>
-    <div className="card" style={{ marginTop: 16 }}><h3>Rooms</h3>
+    <div className="card" style={{ marginTop: 16 }}><div className="setup-card-heading"><div><h3>Rooms</h3><p className="muted">Edit room details without leaving the setup screen.</p></div></div>
+      {editingRoom && <form className="room-type-edit-card" onSubmit={saveRoom}><div><span className="setup-form-eyebrow">EDIT ROOM</span><h3>Edit room {editingRoom.number}</h3><p>Update the room number, room type, or floor.</p></div><div className="room-type-edit-fields"><label>Room number<input value={editingRoom.number} onChange={e => setEditingRoom({ ...editingRoom, number: e.target.value })} required /></label><label>Room type<select value={editingRoom.type} onChange={e => setEditingRoom({ ...editingRoom, type: e.target.value })} required>{(types.d || []).map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label><label>Floor<input type="number" min="0" max="100" value={editingRoom.floorValue} onChange={e => setEditingRoom({ ...editingRoom, floorValue: e.target.value })} required /></label></div><div className="room-type-edit-actions"><button type="button" className="sec" onClick={() => setEditingRoom(null)}>Cancel</button><button type="submit" disabled={savingRoom}>{savingRoom ? "Saving..." : "Save changes"}</button></div></form>}
       <div style={{ overflowX: "auto" }}><table><tbody>{(rooms.d || []).map(r => <tr key={r.id} style={{ opacity: r.archivedAt ? 0.5 : 1 }}><td><b>{r.number}</b></td><td>{r.roomType.name}</td><td>Floor {r.floor}</td><td>{r.archivedAt ? "Archived" : "Active"}</td>
-        <td><button className="sec" onClick={() => go(() => api("/rooms/" + r.id, { method: "PATCH", body: { archived: !r.archivedAt } }), setErr, reload)}>{r.archivedAt ? "Restore" : "Archive"}</button></td></tr>)}</tbody></table></div>
+        <td><button className="sec" onClick={() => openRoomEdit(r)}>Edit</button><button className="sec" onClick={() => go(() => api("/rooms/" + r.id, { method: "PATCH", body: { archived: !r.archivedAt } }), setErr, reload)}>{r.archivedAt ? "Restore" : "Archive"}</button></td></tr>)}</tbody></table></div>
       <form className="row" onSubmit={e => { const f = fd(e), form = e.currentTarget; go(async () => { await api("/rooms", { method: "POST", body: { number: f.number, roomTypeId: f.type, floor: +f.floor } }); form.reset() }, setErr, reload) }}>
         <input name="number" placeholder="Room no." required style={{ width: 100 }} /><select name="type" required>{(types.d || []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select><input name="floor" type="number" min="0" placeholder="Floor" required style={{ width: 90 }} /><button>Add room</button></form></div></>
 }
@@ -50,9 +61,13 @@ function Rates({ setErr }: any) {
 
 function Maint({ setErr }: any) {
   const blocks = useLoad("/maintenance-blocks"), rooms = useLoad("/rooms")
+  const [editing, setEditing] = useState<any>(null), [saving, setSaving] = useState(false)
+  const edit = (b: any) => setEditing({ ...b, start: b.startDate.slice(0, 10), end: b.endDate.slice(0, 10) })
+  const saveEdit = async (e: React.FormEvent) => { e.preventDefault(); if (!editing) return; setSaving(true); try { await api(`/maintenance-blocks/${editing.id}`, { method: "PATCH", body: { startDate: editing.start, endDate: editing.end, reason: editing.reason || "" } }); setEditing(null); blocks.load(); setErr("") } catch (e: any) { setErr(e.message) } finally { setSaving(false) } }
   return <div className="card"><h3>Maintenance blocks</h3><p className="muted">Blocked nights cannot be booked. End date is exclusive, like check-out.</p>
+    {editing && <form className="setup-inline-edit" onSubmit={saveEdit}><div><span className="setup-form-eyebrow">EDIT MAINTENANCE BLOCK</span><h3>Room {editing.room.number}</h3><p>Update the blocked dates or reason.</p></div><div className="setup-inline-fields"><label>Start date<input type="date" value={editing.start} onChange={e => setEditing({ ...editing, start: e.target.value })} required /></label><label>End date<input type="date" value={editing.end} onChange={e => setEditing({ ...editing, end: e.target.value })} required /></label><label>Reason<input value={editing.reason || ""} onChange={e => setEditing({ ...editing, reason: e.target.value })} /></label></div><div className="room-type-edit-actions"><button type="button" className="sec" onClick={() => setEditing(null)}>Cancel</button><button disabled={saving}>{saving ? "Saving..." : "Save changes"}</button></div></form>}
     <table><tbody>{(blocks.d || []).map(b => <tr key={b.id}><td><b>Room {b.room.number}</b></td><td>{b.startDate.slice(0, 10)} → {b.endDate.slice(0, 10)}</td><td>{b.reason}</td>
-      <td><button className="sec" onClick={() => confirm("Remove this block?") && go(() => api("/maintenance-blocks/" + b.id, { method: "DELETE" }), setErr, blocks.load)}>Remove</button></td></tr>)}</tbody></table>
+      <td><button className="sec" onClick={() => edit(b)}>Edit</button><button className="danger-mini" onClick={() => confirm("Remove this block?") && go(() => api("/maintenance-blocks/" + b.id, { method: "DELETE" }), setErr, blocks.load)}>Remove</button></td></tr>)}</tbody></table>
     <form className="row" onSubmit={e => { const f = fd(e), form = e.currentTarget; go(async () => { await api("/maintenance-blocks", { method: "POST", body: { roomId: f.room, startDate: f.start, endDate: f.end, reason: f.reason } }); form.reset() }, setErr, blocks.load) }}>
       <select name="room" required>{(rooms.d || []).filter(r => !r.archivedAt).map(r => <option key={r.id} value={r.id}>Room {r.number}</option>)}</select>
       <input name="start" type="date" required /><input name="end" type="date" required /><input name="reason" placeholder="Reason" /><button>Block dates</button></form></div>
@@ -61,12 +76,15 @@ function Maint({ setErr }: any) {
 const ROLES = ["ADMIN", "MANAGER", "RECEPTIONIST", "HOUSEKEEPING"]
 function Staff({ setErr }: any) {
   const staff = useLoad("/staff"), me = session()
-  return <div className="card"><h3>Staff</h3>
-    <div style={{ overflowX: "auto" }}><table><tbody>{(staff.d || []).map(s => <tr key={s.userId}><td>{s.name}</td><td>{s.email}</td>
-      <td><select value={s.role} onChange={e => go(() => api("/staff/" + s.userId, { method: "PATCH", body: { role: e.target.value } }), setErr, staff.load)}>{ROLES.map(r => <option key={r}>{r}</option>)}</select></td>
-      <td><button className="sec" onClick={() => confirm("Remove " + s.name + " from this hotel?") && go(() => api("/staff/" + s.userId, { method: "DELETE" }), setErr, staff.load)}>Remove</button></td></tr>)}</tbody></table></div>
+  const [reset, setReset] = useState<any>(null), [password, setPassword] = useState(""), [busy, setBusy] = useState(false)
+  const submitReset = async (e: React.FormEvent) => { e.preventDefault(); if (!reset) return; setBusy(true); try { await api(`/staff/${reset.userId}/reset-password`, { method: "POST", body: { password } }); setPassword(""); setReset(null); setErr("") } catch (e: any) { setErr(e.message) } finally { setBusy(false) } }
+  return <div className="card"><div className="setup-card-heading"><div><h3>Staff accounts</h3><p className="muted">Create hotel access, assign work roles, and reset a staff password when needed.</p></div></div>
+    {reset && <form className="setup-inline-edit" onSubmit={submitReset}><div><span className="setup-form-eyebrow">RESET STAFF PASSWORD</span><h3>{reset.name}</h3><p>Give the staff member a temporary password of at least 10 characters.</p></div><div className="setup-inline-fields"><label>New temporary password<input value={password} type="password" minLength={10} onChange={e => setPassword(e.target.value)} required /></label></div><div className="room-type-edit-actions"><button type="button" className="sec" onClick={() => { setReset(null); setPassword("") }}>Cancel</button><button disabled={busy}>{busy ? "Saving..." : "Reset password"}</button></div></form>}
+    <div style={{ overflowX: "auto" }}><table><thead><tr><th>Staff member</th><th>Role</th><th>Account actions</th></tr></thead><tbody>{(staff.d || []).map(s => <tr key={s.userId}><td><b>{s.name}</b><br /><span className="muted">{s.email}</span></td>
+      <td><select value={s.role} disabled={s.userId === me?.userId} onChange={e => go(() => api("/staff/" + s.userId, { method: "PATCH", body: { role: e.target.value } }), setErr, staff.load)}>{ROLES.map(r => <option key={r}>{r}</option>)}</select></td>
+      <td><div className="setup-action-group"><button className="sec" onClick={() => setReset(s)}>Reset password</button><button className="danger-mini" disabled={s.userId === me?.userId} onClick={() => confirm("Remove " + s.name + " from this hotel?") && go(() => api("/staff/" + s.userId, { method: "DELETE" }), setErr, staff.load)}>Remove</button></div></td></tr>)}</tbody></table></div>
     <form className="row" onSubmit={e => { const f = fd(e), form = e.currentTarget; go(async () => { await api("/staff", { method: "POST", body: { name: f.name, email: f.email, password: f.password || undefined, role: f.role } }); form.reset() }, setErr, staff.load) }}>
-      <input name="name" placeholder="Full name" required /><input name="email" type="email" placeholder="Email" required /><input name="password" type="password" minLength={10} placeholder="Password (new users)" />
+      <input name="name" placeholder="Full name" required /><input name="email" type="email" placeholder="Email" required /><input name="password" type="password" minLength={10} placeholder="Temporary password" required />
       <select name="role">{ROLES.map(r => <option key={r}>{r}</option>)}</select><button>Add staff</button></form></div>
 }
 
@@ -83,8 +101,9 @@ export default function Setup() {
   const params = useSearchParams(), [tab, setTab] = useState(params.get("tab") || "rooms"), [err, setErr] = useState(""), [role, setRole] = useState("")
   useEffect(() => { if (params.get("tab")) setTab(params.get("tab")!) }, [params])
   useEffect(() => setRole(session()?.role), [])
-  return <><h1>Setup</h1>
-    <div className="row">{[["rooms", "Rooms"], ["rates", "Rates & promos"], ["maint", "Maintenance"], ...(role === "ADMIN" ? [["staff", "Staff"], ["gateway", "Payments"]] : [])].map(([k, l]) => <button key={k} className={tab === k ? "" : "sec"} onClick={() => { setTab(k); setErr("") }}>{l}</button>)}</div>
+  return <div className="setup-page"><div className="setup-hub-heading"><div><span className="setup-hub-eyebrow">HOTEL CONFIGURATION</span><h1>Hotel setup</h1><p>Manage your rooms, pricing, offers, extra services, staff, and payments from one place.</p></div></div>
+    <div className="setup-tabs" role="tablist">{[["rooms", "Rooms"], ["addons", "Extra services"], ["offers", "Offers"], ...(role === "ADMIN" ? [["staff", "Staff"], ["gateway", "Payment"]] : [])].map(([k, l]) => <button key={k} className={(["rooms", "rates", "maint"].includes(tab) && k === "rooms") || tab === k ? "active" : ""} onClick={() => { setTab(k); setErr("") }}>{l}</button>)}</div>
+    {(["rooms", "rates", "maint"].includes(tab)) && <div className="setup-room-tabs" role="tablist">{[["rooms", "Rooms"], ["rates", "Rates & promos"], ["maint", "Maintenance"]].map(([k, l]) => <button key={k} className={tab === k ? "active" : ""} onClick={() => { setTab(k); setErr("") }}>{l}</button>)}</div>}
     {err && <div className="err">{err}</div>}
-    {tab === "rooms" && <Rooms setErr={setErr} />}{tab === "maint" && <Maint setErr={setErr} />}{tab === "rates" && <Rates setErr={setErr} />}{tab === "staff" && <Staff setErr={setErr} />}{tab === "gateway" && <Gateway setErr={setErr} />}</>
+    {tab === "rooms" && <Rooms setErr={setErr} />}{tab === "addons" && <AddOns />}{tab === "offers" && <Packages />}{tab === "maint" && <Maint setErr={setErr} />}{tab === "rates" && <Rates setErr={setErr} />}{tab === "staff" && <Staff setErr={setErr} />}{tab === "gateway" && <Gateway setErr={setErr} />}</div>
 }

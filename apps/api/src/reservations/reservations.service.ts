@@ -37,7 +37,10 @@ export function nightsBetween(ci: string, co: string): Date[] {
 const TRANSITIONS: Record<string, { from: ResStatus[]; to: ResStatus }> = {
   confirm: { from: ['PENDING'], to: 'CONFIRMED' }, 'check-in': { from: ['CONFIRMED'], to: 'CHECKED_IN' },
   'check-out': { from: ['CHECKED_IN'], to: 'CHECKED_OUT' }, cancel: { from: ['PENDING', 'CONFIRMED'], to: 'CANCELLED' },
+  'no-show': { from: ['PENDING', 'CONFIRMED'], to: 'NO_SHOW' },
 }
+const normalizeEmail = (value?: string) => value?.trim().toLowerCase() || undefined
+const normalizePhone = (value?: string) => value?.trim().replace(/[\s().-]+/g, "") || undefined
 
 @Injectable()
 export class ReservationsService {
@@ -106,8 +109,15 @@ export class ReservationsService {
       const created = await db.$transaction(async tx => {
         const q = await this.price(tx, hotelId, dto)
         const extras = await this.addOnQuote(tx, hotelId, dto)
-        const guest = await tx.guest.create({ data: { hotelId, ...dto.guest } })
-        const res = await tx.reservation.create({ data: { hotelId, guestId: guest.id, source: dto.source, notes: dto.notes, packageId: q.packageId,
+        const guestData = { hotelId, name: dto.guest.name.trim(), email: normalizeEmail(dto.guest.email), phone: normalizePhone(dto.guest.phone) }
+        const guest = guestData.email
+          ? await tx.guest.findFirst({ where: { hotelId, email: guestData.email } })
+          : guestData.phone ? await tx.guest.findFirst({ where: { hotelId, phone: guestData.phone } }) : null
+        const savedGuest = guest || await tx.guest.create({ data: guestData })
+        if (guest && (guest.name !== guestData.name || (!guest.email && guestData.email) || (!guest.phone && guestData.phone))) {
+          await tx.guest.update({ where: { id: guest.id }, data: { name: guestData.name, ...(guest.email ? {} : { email: guestData.email }), ...(guest.phone ? {} : { phone: guestData.phone }) } })
+        }
+        const res = await tx.reservation.create({ data: { hotelId, guestId: savedGuest.id, source: dto.source, notes: dto.notes, packageId: q.packageId,
           totalAmount: q.total + extras.total, discount: q.discount, taxAmount: q.tax, promoCode: dto.promoCode?.toUpperCase(),
           ref: 'M89-' + Math.random().toString(36).slice(2, 8).toUpperCase() } })
         for (const l of q.lines) {
@@ -142,7 +152,7 @@ export class ReservationsService {
     if (!res) throw new NotFoundException()
     if (!t.from.includes(res.status)) throw new BadRequestException(`Cannot ${action} a ${res.status} reservation`)
     const out = await db.$transaction(async tx => {
-      if (t.to === 'CANCELLED') {
+      if (t.to === 'CANCELLED' || t.to === 'NO_SHOW') {
         // Keep the reservation and room assignment for history, but remove it
         // from future availability and the active-date exclusion constraint.
         await tx.roomNight.deleteMany({ where: { item: { reservationId: id } } })

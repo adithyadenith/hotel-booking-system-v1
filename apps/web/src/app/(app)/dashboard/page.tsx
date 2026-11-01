@@ -2,6 +2,7 @@
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { addDays, api, iso, lkr, session } from "@/lib/api"
+import { PageError, PageLoading } from "@/components/page-state"
 
 const statusMeta: Record<string, { label: string; color: string }> = {
   CONFIRMED: { label: "Confirmed", color: "#2563eb" },
@@ -35,15 +36,17 @@ function SourceRevenue({ rows }: { rows: { source: string; value: number }[] }) 
 function StatusChart({ rows, total }: { rows: { key: string; label: string; color: string; count: number; percent: number }[]; total: number }) {
   let start = 0
   const stops = rows.map(x => { const end = start + x.percent; const part = `${x.color} ${start}% ${end}%`; start = end; return part }).join(", ")
-  return <div className="status-chart-layout"><div className="status-donut" style={{ background: rows.length ? `conic-gradient(${stops})` : "#e9eef5" }}><div className="status-donut-hole"><strong>{total}</strong><span>Total</span></div></div><div className="status-legend">{rows.length ? rows.map(x => <div className="status-legend-row" key={x.key}><span><i style={{ background: x.color }} />{x.label}</span><strong>{x.count} <small>{x.percent}%</small></strong></div>) : <p className="muted">No bookings yet.</p>}</div></div>
+  return <div className="status-chart-layout"><div className="status-donut" style={{ background: rows.length ? `conic-gradient(${stops})` : "#e9eef5" }}><div className="status-donut-hole"><strong>{total}</strong><span>Total price</span></div></div><div className="status-legend">{rows.length ? rows.map(x => <div className="status-legend-row" key={x.key}><span><i style={{ background: x.color }} />{x.label}</span><strong>{x.count} <small>{x.percent}%</small></strong></div>) : <p className="muted">No bookings yet.</p>}</div></div>
 }
 
 function Metric({ label, value, hint, tone, icon }: any) {
+  const currentUser = session()
+  if (currentUser?.role === "RECEPTIONIST" && ["Revenue collected", "Outstanding balance"].includes(label)) return null
   return <div className="metric-card"><div className="metric-head"><span>{label}</span><span className={`metric-icon ${tone || "blue"}`}>{icon}</span></div><strong>{value}</strong><small>{hint}</small></div>
 }
 
 function QuickActions() {
-  const actions = [["/calendar", "New booking", "Create a reservation", "+", "blue"], ["/reservations", "Review bookings", "Confirm or update stays", "B", "purple"], ["/operations?tab=housekeeping", "Housekeeping", "Update room readiness", "H", "green"], ["/operations?tab=maintenance", "Maintenance", "Track room repairs", "M", "orange"], ["/reservations", "Record payment", "Collect an outstanding balance", "$", "yellow"], ["/operations", "Hotel operations", "Run today's workflow", "O", "slate"]]
+  const actions = [["/reservations#quick-booking", "New booking", "Create a reservation", "+", "blue"], ["/reservations", "Review bookings", "Confirm or update stays", "B", "purple"], ["/operations?tab=housekeeping", "Housekeeping", "Update room readiness", "H", "green"], ["/operations?tab=maintenance", "Maintenance", "Track room repairs", "M", "orange"], ["/reservations", "Record payment", "Collect an outstanding balance", "$", "yellow"], ["/operations", "Hotel operations", "Run today's workflow", "O", "slate"]]
   return <section className="panel quick-actions-panel"><div className="panel-heading"><div><h2>Quick actions</h2><p>Common tasks for today</p></div></div><div className="quick-actions-grid">{actions.map(([href, title, description, icon, tone]) => <Link key={title} href={href} className="quick-action"><span className={`quick-action-icon ${tone}`}>{icon}</span><span><strong>{title}</strong><small>{description}</small></span><b>&gt;</b></Link>)}</div></section>
 }
 
@@ -92,15 +95,15 @@ export default function Dashboard() {
     return Object.keys(statusMeta).map(key => ({ ...statusMeta[key], key, count: d.reservations.filter((r: any) => r.status === key).length, percent: Math.round(d.reservations.filter((r: any) => r.status === key).length / total * 100) })).filter(x => x.count > 0)
   }, [d])
 
-  if (err) return <div className="err">{err}</div>
-  if (!d) return <div className="muted">Loading dashboard…</div>
+  if (err) return <PageError title="Dashboard could not be loaded" message={err} onRetry={() => window.location.reload()} />
+  if (!d) return <PageLoading label="Loading the latest hotel overview…" />
   const user = session()
   const occupancy = d.total ? Math.round(d.occupied / d.total * 100) : 0
   const availability = Math.max(d.total - d.booked, 0)
-  return <div className="dashboard-page">
+  return <div className={`dashboard-page ${user?.role === "RECEPTIONIST" ? "dashboard-receptionist" : ""}`}>
     <div className="dashboard-hero">
       <div><div className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</div><h1>Good afternoon{user?.name ? `, ${user.name.split(" ")[0]}` : ""} <span className="wave">👋</span></h1><p>Here’s what’s happening at your hotel today.</p></div>
-      <div className="dashboard-actions"><Link className="outline-btn" href="/reservations">Review requests <span className="action-count">{d.pending}</span></Link><Link className="primary-btn" href="/calendar"><span>＋</span> New booking</Link></div>
+      <div className="dashboard-actions"><Link className="outline-btn" href="/reservations">Review requests <span className="action-count">{d.pending}</span></Link><Link className="primary-btn" href="/reservations#quick-booking"><span>＋</span> New booking</Link></div>
     </div>
 
     <section className="metric-grid">
